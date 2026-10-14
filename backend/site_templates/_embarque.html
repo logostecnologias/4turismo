@@ -1,0 +1,10 @@
+{# Os pontos de busca cadastrados nas Saídas. A hora exata vai na confirmação,
+   porque depende da saída escolhida; aqui só a antecedência. #}
+{% if embarque %}
+<ul class="embarque">
+  {% for p in embarque %}
+  <li><strong>{{ p.nome }}</strong>{% if p.endereco %}<small>{{ p.endereco }}</small>{% endif %}<small>{{ p.quando }}</small></li>
+  {% endfor %}
+</ul>
+<p class="nota-embarque">{{ t.busca_outro }}</p>
+{% endif %}

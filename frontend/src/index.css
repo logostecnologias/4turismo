@@ -1,0 +1,809 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Só as fontes da paleta padrão (a oficial) vêm aqui. As das outras seis são
+   carregadas por `lib/tema.js` quando a agência usa uma delas: importar todas
+   aqui deixaria toda tela esperando um CSS que quase ninguém usa. */
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import '@xyflow/react/dist/style.css';
+
+/* ===========================================================================
+   Tokens
+   ---------------------------------------------------------------------------
+   Desde 14/10/2026 a padrão é a paleta oficial do 4turismo: sol (#F5B841),
+   areia (#E9C98B), lagoa (#16B3AC), lagoa funda (#0B6E8A) e noite (#0B2E40).
+   Lagoa funda é a principal (botão com texto branco, 5,8:1); noite é o texto e
+   o fundo do escuro; areia tinge o fundo claro e é o texto secundário do
+   escuro. Lagoa e sol não aguentam texto branco (2,6:1 e 1,8:1): no claro ficam
+   em detalhe, barra e gráfico (o sol do gráfico escurece para #C1830A); no
+   escuro a lagoa vira o botão, com texto noite. Antes (ainda em 14/10) foi
+   laranja #F47721 e roxo #7839A5, e antes disso a Lagoa turquesa. Títulos em Bricolage Grotesque, corpo em
+   Inter. Antes (13/10) a padrão era a Lagoa, turquesa sobre areia, que virou
+   uma das alternativas. Antes disso foi
+   verde-sálvia com serifa, brutalista e "suave" sobre slate e azul.
+
+   Toda cor mora aqui, em variável, porque é o que torna o tema escuro possível:
+   cor cravada no JSX (`bg-white`, `text-slate-500`) não tem equivalente escuro,
+   e era exatamente o que travava o tema antes. O JSX usa os tokens do Tailwind
+   (`bg-surface`, `text-ink-3`, `border-line`), que apontam para estas variáveis.
+
+   O par claro/escuro de cada papel é escolhido junto — tema escuro não é o
+   claro invertido.
+   =========================================================================== */
+:root {
+  color-scheme: light;
+
+  /* Paleta padrão: a oficial do 4turismo. As outras seis ficam abaixo, ligadas por
+     `data-paleta` no <html>, que a agência escolhe em Ajustes (gravado em
+     `tenants.aparencia.paleta`). Cada paleta traz cor E tipografia: trocar só
+     a cor deixava metade da identidade para trás. Os valores saem de um
+     script que confere o contraste nos dois temas, não do olho.
+
+     `--brand-tinta` é a marca usada como TEXTO (link, ícone, borda): na paleta
+     de agora é a própria lagoa funda, que já passa sobre o branco; o token fica
+     porque a laranja anterior não passava, e a próxima paleta pode não passar.
+     Foco, seleção e item ativo do menu também são a lagoa funda (`--info`). O painel do login tem
+     cor própria (`--painel-login`), porque a logo foi desenhada para fundo
+     escuro. As alternativas não definem nada disso e caem em `--brand`
+     (regra `:root[data-paleta]` abaixo). */
+  --bg: #FBF7EF;
+  --surface: #FFFFFF;
+  --surface-2: #FDFAF4;
+  --surface-3: #F5EDDC;
+  --line: #EADFC9;
+  --line-strong: #D3C29E;
+  --text: #0B2E40;
+  --text-2: #1F4556;
+  --text-3: #4F6B78;
+  --text-4: #7E939C;
+  --brand: #0B6E8A;
+  --brand-fg: #FFFFFF;
+  --brand-soft: #E3F4F3;
+
+  --font-heading: 'Bricolage Grotesque', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --peso-titulo: 700;
+  --tracking-titulo: -0.02em;
+
+  --danger: #C81E1E;
+  --danger-soft: #FEF2F2;
+  /* `-solid` e o preenchimento cheio (barra de alerta, selo). Vem com o próprio
+     `-fg` porque no tema escuro o vermelho/verde legível é claro, e texto
+     branco sobre ele daria contraste de ~2:1 — o erro clássico de tema escuro
+     feito por inversão. */
+  --danger-solid: #DC2626;
+  --danger-fg: #FFFFFF;
+  --success: #15803D;
+  --success-soft: #F0FDF4;
+  --success-solid: #15803D;
+  --success-fg: #FFFFFF;
+  --warning: #B45309;
+  --warning-soft: #FFFBEB;
+  --warning-solid: #FBBF24;
+  --warning-fg: #0F172A;   /* texto sobre o amarelo cheio, igual nos dois temas */
+  /* Informação, foco e seleção seguem a marca da paleta. Eram um azul fixo,
+     que destoava de toda paleta que não fosse azul: era o anel de foco de
+     todo campo e a borda de todo cartão selecionado. Por ser `var()`, cada
+     paleta muda o valor só redefinindo `--brand`. O contraste de marca sobre
+     superfície e sobre `--brand-soft` já é conferido nas seis. */
+  --brand-tinta: #0B6E8A;
+  --info: #0B6E8A;
+  --info-soft: #E3F4F3;
+  --painel-login: #0B2E40;
+  --painel-login-fg: #FFFFFF;
+
+  /* Séries do gráfico: o roxo e a laranja da marca (14/10/2026; antes eram
+     azul #2563EB e laranja #EA580C). Contraste >= 3:1 contra a superfície de
+     cada tema, conferido por script: a laranja oficial #F47721 dá 2,8:1 no
+     branco, então no claro a série é #EB670C (3,2:1); no escuro ela passa pura
+     (6:1) e o roxo é o clareado (#AE7FD9). Roxo e laranja diferem em matiz e em
+     luminosidade, o que mantém as duas séries distintas para daltonismo. O eixo
+     é texto, por isso usa o texto-3 de cada tema. */
+  --serie-1: #0B6E8A;
+  --serie-2: #C1830A;
+  --grade: #EFE6D3;
+  --eixo: #4F6B78;
+
+  --sombra-1: rgba(15, 23, 42, 0.06);
+  --sombra-2: rgba(15, 23, 42, 0.18);
+
+  --radius: 10px;   /* consumido pelos componentes shadcn em components/ui/ */
+
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --bg: #071E2B;
+  --surface: #0B2E40;
+  --surface-2: #10384D;
+  --surface-3: #14415A;
+  --line: #1C4D66;
+  --line-strong: #2C6380;
+  --text: #F7FAFB;
+  --text-2: #E9C98B;
+  --text-3: #94ADB8;
+  --text-4: #6F8A97;
+  --brand: #18C5BD;
+  --brand-fg: #071E2B;
+  --brand-soft: #0E4A52;
+
+  --danger: #F87171;
+  --danger-soft: #3A1D22;
+  --danger-solid: #B42318;
+  --danger-fg: #FFFFFF;
+  --success: #4ADE80;
+  --success-soft: #14301F;
+  --success-solid: #4ADE80;
+  --success-fg: #06251A;
+  --warning: #FBBF24;
+  --warning-soft: #36270B;
+  --warning-solid: #FBBF24;
+  --warning-fg: #0F172A;
+  --brand-tinta: #18C5BD;
+  --info: #18C5BD;
+  --info-soft: #0E4A52;
+  --painel-login: #071E2B;
+  --painel-login-fg: #FFFFFF;
+
+  --serie-1: #18C5BD;
+  --serie-2: #F5B841;
+  --grade: #1C4D66;
+  --eixo: #94ADB8;
+
+  /* No escuro a sombra preta é quase invisível; o relevo vem da borda mais
+     clara, e a sombra fica só como profundidade de sobreposição. */
+  --sombra-1: rgba(0, 0, 0, 0.30);
+  --sombra-2: rgba(0, 0, 0, 0.55);
+}
+
+/* ===========================================================================
+   Paletas alternativas
+   ---------------------------------------------------------------------------
+   Só redefinem marca, neutros e fontes. Erro/sucesso/aviso/informação e as
+   séries de gráfico são comuns a todas: são sinais, não identidade, e as
+   séries já foram validadas pelo validador de paleta.
+
+   Especificidade: `:root[data-paleta]` (0,2,0) ganha do `.dark` padrão
+   (0,1,0), por isso o escuro de cada paleta é `:root.dark[data-paleta]`
+   (0,3,0). Sem isso, a paleta clara pintaria por cima do tema escuro.
+
+   Contraste conferido por script nos dois temas: texto-2 a 7:1 e texto-3 a
+   4,6:1 contra fundo e as três superfícies, a marca a 4,6:1 contra as
+   superfícies e o próprio `--brand-soft`, e o texto do botão sobre a marca.
+   No escuro toda marca é clareada e o botão leva texto escuro: a marca média
+   com texto branco reprovava como texto sobre a superfície escura.
+   =========================================================================== */
+
+/* As alternativas não têm tinta, roxo de destaque nem painel de login próprios:
+   tudo isso volta a ser a marca da paleta. (0,2,0) ganha do `.dark`, então vale
+   nos dois temas. */
+:root[data-paleta] {
+  --brand-tinta: var(--brand);
+  --info: var(--brand);
+  --info-soft: var(--brand-soft);
+  --painel-login: var(--brand);
+  --painel-login-fg: var(--brand-fg);
+}
+
+/* Lagoa: foi a padrão de 13/10/2026 até a paleta oficial chegar. */
+:root[data-paleta="lagoa"] {
+  --bg: #F7F5F0;
+  --surface: #FFFFFF;
+  --surface-2: #FCFBF9;
+  --surface-3: #F2EFE8;
+  --line: #E6E1D8;
+  --line-strong: #C8C2B7;
+  --text: #152628;
+  --text-2: #385357;
+  --text-3: #527075;
+  --text-4: #749095;
+  --brand: #0D767F;
+  --brand-fg: #FFFFFF;
+  --brand-soft: #E9F5F7;
+  --font-heading: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-body: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --peso-titulo: 700;
+  --tracking-titulo: -0.02em;
+}
+:root.dark[data-paleta="lagoa"] {
+  --bg: #0D1314;
+  --surface: #141C1D;
+  --surface-2: #192324;
+  --surface-3: #202B2D;
+  --line: #273335;
+  --line-strong: #3D4A4C;
+  --text: #EBE9E5;
+  --text-2: #C2BEB8;
+  --text-3: #859A9D;
+  --text-4: #6D8082;
+  --brand: #4FC3CC;
+  --brand-fg: #0A2224;
+  --brand-soft: #153032;
+}
+
+:root[data-paleta="duna"] {
+  --bg: #F8F4EF;
+  --surface: #FFFFFF;
+  --surface-2: #FCFBF9;
+  --surface-3: #F3EEE7;
+  --line: #E8E1D7;
+  --line-strong: #CAC1B4;
+  --text: #261F17;
+  --text-2: #5A4C3F;
+  --text-3: #756657;
+  --text-4: #928577;
+  --brand: #8C5A1E;
+  --brand-fg: #FFFFFF;
+  --brand-soft: #F7F0E9;
+  --font-heading: 'Bricolage Grotesque', system-ui, sans-serif;
+  --font-body: 'Figtree', system-ui, sans-serif;
+  --peso-titulo: 600;
+  --tracking-titulo: -0.02em;
+}
+:root.dark[data-paleta="duna"] {
+  --bg: #13110E;
+  --surface: #1C1815;
+  --surface-2: #231F1A;
+  --surface-3: #2B2621;
+  --line: #342E28;
+  --line-strong: #4B453F;
+  --text: #ECE9E4;
+  --text-2: #C3BEB6;
+  --text-3: #9B9187;
+  --text-4: #80786F;
+  --brand: #E0A85C;
+  --brand-fg: #251909;
+  --brand-soft: #322615;
+}
+
+:root[data-paleta="sol"] {
+  --bg: #F8F3EF;
+  --surface: #FFFFFF;
+  --surface-2: #FCFAF9;
+  --surface-3: #F4EDE7;
+  --line: #E8DFD6;
+  --line-strong: #CBBEB4;
+  --text: #271A16;
+  --text-2: #5F473F;
+  --text-3: #765E56;
+  --text-4: #937D76;
+  --brand: #BD3F0C;
+  --brand-fg: #FFFFFF;
+  --brand-soft: #F7EDE9;
+  --font-heading: 'Sora', system-ui, sans-serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+  --peso-titulo: 600;
+  --tracking-titulo: -0.02em;
+}
+:root.dark[data-paleta="sol"] {
+  --bg: #140F0E;
+  --surface: #1C1614;
+  --surface-2: #231C1A;
+  --surface-3: #2C2321;
+  --line: #342B27;
+  --line-strong: #4C413E;
+  --text: #EDE8E3;
+  --text-2: #C3BCB6;
+  --text-3: #9C8C86;
+  --text-4: #81736E;
+  --brand: #FB8A5B;
+  --brand-fg: #251109;
+  --brand-soft: #321E15;
+}
+
+:root[data-paleta="mangue"] {
+  --bg: #F4F5F2;
+  --surface: #FFFFFF;
+  --surface-2: #FAFBFA;
+  --surface-3: #EDEFEB;
+  --line: #DFE2DC;
+  --line-strong: #BFC3BB;
+  --text: #17261C;
+  --text-2: #3C5544;
+  --text-3: #54715D;
+  --text-4: #779280;
+  --brand: #2E6B3F;
+  --brand-fg: #FFFFFF;
+  --brand-soft: #EAF6ED;
+  --font-heading: 'Manrope', system-ui, sans-serif;
+  --font-body: 'Manrope', system-ui, sans-serif;
+  --peso-titulo: 700;
+  --tracking-titulo: -0.02em;
+}
+:root.dark[data-paleta="mangue"] {
+  --bg: #0E1310;
+  --surface: #151C17;
+  --surface-2: #1A231D;
+  --surface-3: #212B25;
+  --line: #28342C;
+  --line-strong: #3F4B43;
+  --text: #E8EAE6;
+  --text-2: #BDBFBA;
+  --text-3: #879B8E;
+  --text-4: #6F8075;
+  --brand: #7CC98F;
+  --brand-fg: #0D2112;
+  --brand-soft: #15321C;
+}
+
+:root[data-paleta="azulejo"] {
+  --bg: #F1F3F6;
+  --surface: #FFFFFF;
+  --surface-2: #F9FAFB;
+  --surface-3: #EAEDF1;
+  --line: #DADEE4;
+  --line-strong: #B9BEC6;
+  --text: #131B2B;
+  --text-2: #394865;
+  --text-3: #4F5E7D;
+  --text-4: #707E99;
+  --brand: #1F4E8C;
+  --brand-fg: #FFFFFF;
+  --brand-soft: #E9EFF7;
+  --font-heading: 'Lora', Georgia, serif;
+  --font-body: 'Source Sans 3', system-ui, sans-serif;
+  --peso-titulo: 600;
+  --tracking-titulo: -0.01em;
+}
+:root.dark[data-paleta="azulejo"] {
+  --bg: #0C0F15;
+  --surface: #12161E;
+  --surface-2: #181C25;
+  --surface-3: #1E242E;
+  --line: #252B37;
+  --line-strong: #3B424E;
+  --text: #E6E8EB;
+  --text-2: #B9BCC0;
+  --text-3: #828CA1;
+  --text-4: #6A7385;
+  --brand: #8DB3F0;
+  --brand-fg: #091425;
+  --brand-soft: #152032;
+}
+
+:root[data-paleta="caju"] {
+  --bg: #F7F3F1;
+  --surface: #FFFFFF;
+  --surface-2: #FCFAF9;
+  --surface-3: #F1ECE9;
+  --line: #E5DDD9;
+  --line-strong: #C7BDB8;
+  --text: #25181A;
+  --text-2: #5C4247;
+  --text-3: #73595D;
+  --text-4: #90797D;
+  --brand: #9B2335;
+  --brand-fg: #FFFFFF;
+  --brand-soft: #F7E9EB;
+  --font-heading: 'Fraunces', Georgia, serif;
+  --font-body: 'Figtree', system-ui, sans-serif;
+  --peso-titulo: 600;
+  --tracking-titulo: -0.01em;
+}
+:root.dark[data-paleta="caju"] {
+  --bg: #130E0F;
+  --surface: #1C1516;
+  --surface-2: #231B1C;
+  --surface-3: #2B2223;
+  --line: #33292A;
+  --line-strong: #4A3F41;
+  --text: #EBE7E5;
+  --text-2: #C1BBB8;
+  --text-3: #9A898C;
+  --text-4: #807073;
+  --brand: #F08A98;
+  --brand-fg: #25090D;
+  --brand-soft: #321519;
+}
+
+/* Escala do sistema inteiro pela raiz: o Tailwind mede tudo em rem (texto,
+   espaçamento, larguras), então subir o tamanho da raiz aumenta a tela toda na
+   mesma proporção, sem tocar em tela nenhuma. Em notebook fica no padrão do
+   navegador; em monitor de 1536px ou mais sobe um degrau, e em 1800px ou mais
+   outro. Em 1920 o texto de 14px parecia de rodapé, que foi a reclamação. */
+html { font-size: 100%; }
+@media (min-width: 1536px) { html { font-size: 106.25%; } }
+@media (min-width: 1800px) { html { font-size: 112.5%; } }
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* A troca de tema anima só cor. Com `transition: all` a transição pegaria
+   layout também, e cada navegação repintaria a tela inteira com atraso. */
+body, .zz-panel, .zz-panel-hard, .zz-input, .zz-btn, .zz-nav-item {
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+
+.font-heading { font-family: var(--font-heading); letter-spacing: var(--tracking-titulo); }
+
+/* O peso do título é da paleta, não da tela. As telas ainda carregam
+   `font-heading font-black tracking-tighter` da época brutalista, e as serifas
+   novas não têm peso 900: o navegador inventaria um negrito borrado. Esta regra
+   vem depois das utilidades do Tailwind no arquivo, então ganha delas sem
+   `!important`. */
+.font-heading.font-black, .font-heading.font-extrabold, .font-heading.font-bold,
+.font-heading.font-semibold, .font-heading.font-medium {
+  font-weight: var(--peso-titulo);
+}
+.font-heading.tracking-tighter, .font-heading.tracking-tight { letter-spacing: var(--tracking-titulo); }
+.font-mono { font-family: var(--font-mono); }
+
+/* ===========================================================================
+   Contêiner de página
+   ---------------------------------------------------------------------------
+   Cada tela tinha o seu próprio teto de largura, escolhido tela por tela:
+   `max-w-3xl` a `max-w-7xl`, de 768 a 1280px. Num monitor de 1920 o painel
+   parava em 1152px e sobravam ~500px de faixa morta à direita — a tela parecia
+   pequena, que foi exatamente a reclamação.
+
+   O teto agora é um só: 1680px, que é 1920 menos a barra lateral de 240px. Até
+   um monitor de 1920 a página ocupa a largura inteira; acima disso ela
+   centraliza em vez de esticar uma tabela por 3.000px, que é leitura de ponta a
+   ponta que ninguém faz.
+   =========================================================================== */
+.zz-page {
+  width: 100%;
+  max-width: 1680px;
+  margin-inline: auto;
+  padding: 2rem;
+}
+@media (min-width: 1536px) { .zz-page { padding: 2.5rem; } }
+
+/* Tela de leitura e formulário (Configurações). Aqui largura não é ganho:
+   campo de texto de 1.600px é pior que um de 700, não melhor. */
+.zz-page-form { width: 100%; max-width: 60rem; padding: 2rem; }
+
+/* ---------------------------------------------------------------------------
+   Impressão: a lista de embarque é a tela feita para papel.
+
+   O papel é branco nos dois temas, então dentro de `.zz-imprimir` toda cor
+   vira preto sobre branco: os tokens do tema escuro (texto claro, cartões
+   escuros) sairiam cinza-claro ilegível, e uma impressora preto e branco
+   transforma os selos coloridos em borrões. A barra lateral e os botões somem
+   pelas classes `print:hidden` de cada tela.
+   --------------------------------------------------------------------------- */
+@media print {
+  html, body, .bg-canvas { background: #fff !important; }
+  [data-sonner-toaster] { display: none !important; }
+  .zz-imprimir, .zz-imprimir * {
+    color: #000 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .zz-imprimir { font-size: 12pt; }
+}
+
+/* ---------------------------------------------------------------------------
+   Fileira de números dentro de um cartão.
+
+   Container query, não breakpoint de viewport: o que decide se cabem quatro
+   números lado a lado é a largura do CARTÃO, e ela não é função da largura da
+   janela — o mesmo cartão tem 800px quando o painel está em 2 colunas e 395px
+   quando está em 4. Amarrado ao viewport, "EM ATENDIMENTO" (rótulo de 9px, ~88px
+   de largura) quebrava em duas linhas justamente na tela larga.
+   --------------------------------------------------------------------------- */
+.zz-cartao-corpo { container-type: inline-size; }
+.zz-numeros {
+  display: grid; gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@container (min-width: 440px) {
+  .zz-numeros { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+/* Duas medidas (não quatro) já caberiam lado a lado antes, mas valor em reais
+   é mais largo que contagem — daí o piso próprio. */
+.zz-numeros-2 { display: grid; gap: 0.75rem; grid-template-columns: minmax(0, 1fr); }
+@container (min-width: 300px) {
+  .zz-numeros-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ===========================================================================
+   Superfícies
+   =========================================================================== */
+.zz-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+/* Continua chamado `-hard` porque é o painel de destaque e o nome está em ~22
+   telas; o que era sombra dura deslocada virou sombra difusa. */
+.zz-panel-hard {
+  background: var(--surface);
+  border-radius: 14px;
+  box-shadow: 0 1px 2px var(--sombra-1), 0 8px 24px -14px var(--sombra-2);
+}
+
+/* ===========================================================================
+   Controles
+   =========================================================================== */
+.zz-input {
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  padding: 0.6rem 0.8rem;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.875rem;
+  font-family: inherit;
+  width: 100%;
+  outline: none;
+  transition: border-color .12s, box-shadow .12s, background-color .15s;
+}
+.zz-input::placeholder { color: var(--text-4); }
+
+/* As setinhas de `input[type=number]` são desenhadas pelo navegador, não por
+   nós: não seguem os tokens de cor, aparecem só no hover em alguns navegadores
+   e ficam por cima de qualquer coisa posicionada à direita do campo: foi assim
+   que elas cobriram o sufixo "min" na configuração da agenda. Ninguém acerta um
+   alvo de 8px para somar de 1 em 1; quem quer isso usa as setas do teclado, que
+   continuam funcionando. */
+.zz-input[type="number"]::-webkit-inner-spin-button,
+.zz-input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+.zz-input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+/* O foco era borda preta + anel preto de 2px. Agora é o azul de informação com
+   anel translúcido — mesma força de sinal, sem o peso do contorno cheio. */
+.zz-input:focus {
+  border-color: var(--info);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--info) 22%, transparent);
+}
+.zz-input:disabled { background: var(--surface-2); color: var(--text-3); cursor: not-allowed; }
+select.zz-input { cursor: pointer; }
+textarea.zz-input { line-height: 1.55; }
+
+.zz-btn {
+  display: inline-flex; align-items: center; gap: .5rem;
+  padding: 0.6rem 1.1rem; font-weight: 600; font-size: 0.85rem;
+  font-family: inherit;
+  border: 1px solid var(--brand); background: var(--brand); color: var(--brand-fg);
+  border-radius: 10px;
+  box-shadow: 0 1px 2px var(--sombra-1);
+  transition: background .12s, box-shadow .12s, transform .1s, border-color .12s, filter .12s;
+  cursor: pointer;
+}
+.zz-btn:hover { box-shadow: 0 2px 8px -2px var(--sombra-2); filter: brightness(1.12); }
+/* O empurrãozinho de 1px no clique era a única parte tátil do desenho antigo
+   que valia manter. */
+.zz-btn:active { transform: translateY(1px); box-shadow: none; filter: none; }
+.zz-btn:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; filter: none; }
+.zz-btn:disabled:active { transform: none; }
+.zz-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--info) 35%, transparent);
+}
+
+.zz-btn-secondary {
+  background: var(--surface); color: var(--text); border-color: var(--line-strong);
+}
+.zz-btn-secondary:hover { background: var(--surface-2); border-color: var(--text-4); filter: none; }
+.zz-btn-danger { background: var(--danger-solid); border-color: var(--danger-solid); color: var(--danger-fg); }
+
+/* Botão-pílula para ação redonda de barra (seletor de tema, por exemplo). */
+.zz-btn-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 2.25rem; height: 2.25rem; padding: 0;
+  border-radius: 9999px;
+  border: 1px solid var(--line);
+  background: var(--surface); color: var(--text-2);
+  cursor: pointer;
+  transition: background .12s, color .12s, border-color .12s;
+}
+.zz-btn-icon:hover { background: var(--surface-3); color: var(--text); border-color: var(--line-strong); }
+
+/* ===========================================================================
+   Navegação
+   ---------------------------------------------------------------------------
+   O item ativo era marcado por uma barra reta de 2px na borda esquerda. Agora é
+   uma pílula preenchida — mesmo sinal, coerente com o resto arredondado.
+   =========================================================================== */
+.zz-nav-item {
+  display:flex; align-items:center; gap:0.75rem;
+  margin: 0.15rem 0.6rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 10px;
+  color: var(--text-3); font-size: 0.875rem; font-weight: 500;
+  cursor: pointer; transition: background .12s, color .12s;
+}
+.zz-nav-item:hover { background: var(--surface-3); color: var(--text); }
+.zz-nav-item.active { color: var(--info); background: var(--info-soft); font-weight: 600; }
+.zz-nav-item.active:hover { background: var(--info-soft); color: var(--info); }
+
+/* Subtitulo de grupo da barra lateral. Nao e item clicavel, entao nao pode
+   competir com eles: menor, sem fundo e sem icone. Era caixa alta espacada,
+   herança brutalista que deixava a barra com cara de painel tecnico. A cor e
+   `--text-3`, nao `--text-4`: em texto pequeno o `--text-4` reprova no
+   contraste. O que separa o titulo do item e o tamanho e o peso. O recuo alinha com o rotulo do item
+   (0.6rem de margem do item mais 0.8rem de padding), nao com a borda da barra,
+   senao o titulo parece de outra coluna. */
+.zz-nav-grupo {
+  padding: 0.35rem 1.4rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-3);
+}
+
+/* Sinalização de fila — conversas aguardando atendimento precisam saltar aos
+   olhos de qualquer canto do sistema, não só na tela da Central. */
+@keyframes zz-pulse-alert {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.55); }
+  50%      { box-shadow: 0 0 0 6px rgba(239,68,68,0); }
+}
+@keyframes zz-blink-soft {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+.zz-alert-pulse { animation: zz-pulse-alert 1.6s ease-out infinite; }
+.zz-alert-blink { animation: zz-blink-soft 1.6s ease-in-out infinite; }
+.zz-queue-badge {
+  display:inline-flex; align-items:center; justify-content:center;
+  min-width:1.35rem; height:1.35rem; padding:0 0.35rem;
+  background:#EF4444; color:#fff; font-size:0.7rem; font-weight:800;
+  border-radius:999px; line-height:1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .zz-alert-pulse, .zz-alert-blink { animation: none; }
+  body, .zz-panel, .zz-panel-hard, .zz-input, .zz-btn, .zz-nav-item { transition: none; }
+}
+
+/* ===========================================================================
+   Editor de fluxos (React Flow)
+   =========================================================================== */
+.react-flow__background { background-color: var(--bg); }
+.react-flow__handle {
+  width: 12px; height: 12px;
+  background: var(--surface); border: 2px solid var(--line-strong);
+}
+.react-flow__handle:hover { background: var(--info-soft); border-color: var(--info); }
+.react-flow__edge-path { stroke: var(--text-4); stroke-width: 2; }
+.react-flow__edge.selected .react-flow__edge-path { stroke: var(--info); stroke-width: 3; }
+.react-flow__controls, .react-flow__minimap {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px -4px var(--sombra-2);
+}
+.react-flow__controls-button {
+  background: var(--surface); border-bottom: 1px solid var(--line);
+  color: var(--text); fill: var(--text);
+}
+.react-flow__controls-button:hover { background: var(--surface-3); }
+.react-flow__attribution { background: transparent; color: var(--text-4); }
+
+.zz-node {
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  min-width: 240px;
+  box-shadow: 0 1px 2px var(--sombra-1), 0 8px 20px -14px var(--sombra-2);
+  border-radius: 14px; overflow: hidden;
+  transition: transform .12s, box-shadow .12s;
+}
+.zz-node:hover { transform: translateY(-2px); box-shadow: 0 4px 16px -6px var(--sombra-2); }
+.zz-node.selected {
+  border-color: var(--info);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--info) 30%, transparent);
+}
+.zz-node-header {
+  display:flex; align-items:center; gap:0.5rem; padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid var(--line); font-weight: 700; font-size: 0.85rem;
+}
+.zz-node-body { padding: 0.85rem; font-size: 0.8rem; color: var(--text-2); }
+.zz-node-warning {
+  position: absolute; top: -8px; right: -8px;
+  background: var(--warning-solid); color: var(--warning-fg);
+  border-radius: 9999px; padding: 1px 7px; font-size: 10px; font-weight: 700;
+  box-shadow: 0 1px 3px var(--sombra-2);
+}
+
+/* ===========================================================================
+   Toasts (Sonner)
+   =========================================================================== */
+.zz-toast {
+  border-radius: 14px !important;
+  border: 1px solid var(--line) !important;
+  box-shadow: 0 2px 6px var(--sombra-1), 0 16px 40px -12px var(--sombra-2) !important;
+  background: var(--surface) !important;
+  padding: 0.9rem 1rem !important;
+}
+.zz-toast-title { font-weight: 700 !important; font-size: 0.875rem !important; color: var(--text) !important; }
+.zz-toast-desc { color: var(--text-2) !important; font-size: 0.8rem !important; }
+.zz-toast-success { border-left: 4px solid var(--success) !important; }
+.zz-toast-error { border-left: 4px solid var(--danger) !important; }
+.zz-toast-warning { border-left: 4px solid var(--warning) !important; }
+.zz-toast-info { border-left: 4px solid var(--info) !important; }
+.zz-toast-action {
+  border-radius: 9px !important; font-weight: 600 !important; font-size: 0.8rem !important;
+  background: var(--brand) !important; border: 1px solid var(--brand) !important;
+  color: var(--brand-fg) !important;
+}
+.zz-toast-action:hover { filter: brightness(1.12); }
+.zz-toast-action-danger { background: var(--danger-solid) !important; border-color: var(--danger-solid) !important; color: var(--danger-fg) !important; }
+.zz-toast-cancel {
+  border-radius: 9px !important; font-weight: 600 !important; font-size: 0.8rem !important;
+  background: var(--surface) !important; border: 1px solid var(--line-strong) !important;
+  color: var(--text) !important;
+}
+.zz-toast-cancel:hover { background: var(--surface-2) !important; }
+.zz-toast-close {
+  border-radius: 9999px !important; border: 1px solid var(--line) !important;
+  background: var(--surface) !important; color: var(--text-2) !important;
+}
+
+/* ===========================================================================
+   Barra de rolagem
+   =========================================================================== */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--line-strong); border-radius: 9999px;
+  border: 2px solid transparent; background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--text-4); background-clip: content-box; }
+* { scrollbar-color: var(--line-strong) transparent; scrollbar-width: thin; }
+
+/* ===========================================================================
+   Tokens shadcn (components/ui/) — em HSL porque é o formato que aquele
+   conjunto de componentes espera. Espelham os tokens acima.
+   =========================================================================== */
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --primary: 222 47% 11%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 217 91% 60%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+  }
+
+  .dark {
+    --background: 224 48% 8%;
+    --foreground: 216 44% 94%;
+    --primary: 217 76% 54%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 222 33% 16%;
+    --secondary-foreground: 216 44% 94%;
+    --muted: 222 33% 16%;
+    --muted-foreground: 218 15% 62%;
+    --border: 222 31% 24%;
+    --input: 222 31% 24%;
+    --ring: 217 89% 68%;
+    --card: 223 37% 13%;
+    --card-foreground: 216 44% 94%;
+    --popover: 223 37% 13%;
+    --popover-foreground: 216 44% 94%;
+    --accent: 222 33% 20%;
+    --accent-foreground: 216 44% 94%;
+    --destructive: 0 74% 60%;
+    --destructive-foreground: 0 0% 100%;
+  }
+}
+
+/* A marca usada como texto passa pela tinta: na paleta oficial a laranja pura
+   some sobre o branco. Vem depois das utilidades do Tailwind, então ganha delas. */
+.text-brand { color: var(--brand-tinta, var(--brand)); }
+.border-brand { border-color: var(--brand-tinta, var(--brand)); }
+.zz-painel-login { background: var(--painel-login, var(--brand)); color: var(--painel-login-fg, var(--brand-fg)); }

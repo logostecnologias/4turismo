@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block estilo %}
+  .voltar { display: inline-block; margin: 20px 0 8px; color: var(--text-2); text-decoration: none; font-size: 15px; }
+{% endblock %}
+{% block conteudo %}
+<section>
+  <div class="container">
+    <a class="voltar" href="{{ pref }}/{{ sufixo }}">← {{ nome }}</a>
+    <div class="secao-titulo">
+      <h1>{{ t.guias }}</h1>
+      <p>{{ t.guias_sub }}</p>
+    </div>
+    {% set cartoes_guias = guias %}{% include "_guias.html" %}
+  </div>
+</section>
+{% endblock %}

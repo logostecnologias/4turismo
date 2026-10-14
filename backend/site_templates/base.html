@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="{{ html_lang or 'pt-BR' }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ titulo }}</title>
+<meta name="description" content="{{ descricao }}">
+{% if em_previa %}<meta name="robots" content="noindex, nofollow">{% endif %}
+{% if site and site.google_verificacao and not em_previa %}<meta name="google-site-verification" content="{{ site.google_verificacao }}">{% endif %}
+{% if canonical %}<link rel="canonical" href="{{ canonical }}">{% endif %}
+{% for a in alternativas or [] %}<link rel="alternate" hreflang="{{ a.hreflang }}" href="{{ a.href }}">
+{% endfor %}
+<meta property="og:type" content="website">
+<meta property="og:title" content="{{ titulo }}">
+<meta property="og:description" content="{{ descricao }}">
+{% if canonical %}<meta property="og:url" content="{{ canonical }}">{% endif %}
+{% if og_imagem %}<meta property="og:image" content="{{ og_imagem }}">{% endif %}
+<meta property="og:locale" content="{{ og_locale or 'pt_BR' }}">
+<meta name="theme-color" content="{{ paleta.brand }}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family={{ paleta.fontes }}&display=swap">
+{% if jsonld %}<script type="application/ld+json" nonce="{{ nonce }}">{{ jsonld|safe }}</script>{% endif %}
+<style>
+  :root {
+    --bg: {{ paleta.bg }}; --surface: {{ paleta.surface }}; --surface-2: {{ paleta.surface2 }};
+    --line: {{ paleta.line }}; --text: {{ paleta.text }}; --text-2: {{ paleta.text2 }};
+    --text-3: {{ paleta.text3 }}; --brand: {{ paleta.brand }}; --brand-fg: {{ paleta.brand_fg }};
+    --brand-soft: {{ paleta.brand_soft }}; --tinta: {{ paleta.tinta or paleta.brand }};
+    --titulo: {{ paleta.titulo|safe }}; --corpo: {{ paleta.corpo|safe }}; --peso: {{ paleta.peso }}; --tracking: {{ paleta.tracking }};
+    --zap: #1F8F4E; --zap-fg: #FFFFFF;
+    --raio: 14px; --largura: 1120px;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--corpo);
+         font-size: 17px; line-height: 1.6; }
+  img { max-width: 100%; display: block; }
+  a { color: var(--tinta); }
+  h1, h2, h3 { font-family: var(--titulo); font-weight: var(--peso); letter-spacing: var(--tracking); line-height: 1.15;
+               margin: 0 0 .5em; letter-spacing: -0.01em; }
+  h1 { font-size: clamp(2rem, 5vw, 3.4rem); }
+  h2 { font-size: clamp(1.5rem, 3.4vw, 2.2rem); }
+  h3 { font-size: 1.25rem; }
+  p { margin: 0 0 1em; }
+  .container { width: 100%; max-width: var(--largura); margin: 0 auto; padding: 0 16px; }
+  .previa { background: #6B4E00; color: #FFF8E1; text-align: center; padding: 8px 16px;
+            font-size: 14px; font-weight: 600; }
+  header.topo { background: var(--surface); border-bottom: 1px solid var(--line);
+                position: sticky; top: 0; z-index: 10; }
+  header.topo .container { display: flex; align-items: center; justify-content: space-between;
+                           gap: 12px; min-height: 64px; }
+  .marca { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); min-width: 0;
+           font-family: var(--titulo); font-weight: var(--peso); font-size: 1.2rem; min-width: 0; }
+  .marca img { height: 40px; width: auto; border-radius: 8px; }
+  .marca span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+         border-radius: 999px; padding: 12px 22px; font-weight: 600; font-size: 16px;
+         text-decoration: none; border: 0; cursor: pointer; font-family: var(--corpo);
+         line-height: 1.2; min-height: 48px; }
+  .btn-zap { background: var(--zap); color: var(--zap-fg); }
+  .btn-zap:hover { filter: brightness(1.06); }
+  .btn-marca { background: var(--brand); color: var(--brand-fg); }
+  .btn-sm { padding: 8px 16px; min-height: 40px; font-size: 15px; }
+  .btn svg { width: 20px; height: 20px; flex: none; }
+  section { padding: 56px 0; }
+  .secao-titulo { margin-bottom: 24px; }
+  .secao-titulo p { color: var(--text-2); margin: 0; }
+  .grade { display: grid; gap: 20px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+  .cartao { background: var(--surface); border: 1px solid var(--line); border-radius: var(--raio);
+            overflow: hidden; display: flex; flex-direction: column; text-decoration: none;
+            color: inherit; transition: box-shadow .2s, transform .2s; }
+  .cartao:hover { box-shadow: 0 10px 30px rgba(0,0,0,.08); transform: translateY(-2px); }
+  .cartao .foto { aspect-ratio: 4 / 3; background: var(--brand-soft); object-fit: cover; width: 100%; }
+  .cartao .foto-vazia { aspect-ratio: 4 / 3; background: var(--brand-soft); display: flex;
+                        align-items: center; justify-content: center; color: var(--tinta);
+                        font-family: var(--titulo); font-size: 1.4rem; padding: 16px; text-align: center; }
+  .cartao .corpo { padding: 18px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .cartao h3 { margin: 0; }
+  .meta { color: var(--text-3); font-size: 14px; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+  .preco { font-weight: 700; color: var(--text); }
+  .preco small { font-weight: 500; color: var(--text-3); }
+  .cartao .mais { margin-top: auto; padding-top: 8px; color: var(--tinta); font-weight: 600; }
+  footer.rodape { border-top: 1px solid var(--line); background: var(--surface); padding: 32px 0;
+                  color: var(--text-2); font-size: 15px; }
+  footer.rodape .container { display: flex; flex-wrap: wrap; gap: 16px 32px; justify-content: space-between; }
+  footer.rodape a { color: var(--text-2); }
+  .zap-flutuante { position: fixed; right: 16px; bottom: 16px; z-index: 20;
+                   box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+  /* Fase 3.1: blocos de conteúdo, os mesmos nas duas páginas. */
+  .secao-clara { background: var(--surface); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .estrelas { color: #F5B841; letter-spacing: 1px; }
+  .selo-nota { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 15px;
+               color: var(--text); text-decoration: none; background: var(--surface);
+               border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; }
+  a.selo-nota:hover { border-color: var(--tinta); }
+  .mais-link { margin-top: 20px; font-weight: 600; }
+  .diferenciais { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+  .diferencial { display: flex; gap: 12px; align-items: flex-start; background: var(--bg);
+                 border: 1px solid var(--line); border-radius: var(--raio); padding: 16px; }
+  .diferencial .ok { flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--brand-soft);
+                     color: var(--tinta); display: flex; align-items: center; justify-content: center; font-weight: 700; }
+  .credenciais { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+  .credenciais span { background: var(--bg); border: 1px solid var(--line); border-radius: 999px;
+                      padding: 6px 14px; font-size: 15px; color: var(--text-2); }
+  .depoimentos { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+  .depoimento { background: var(--bg); border: 1px solid var(--line); border-radius: var(--raio);
+                padding: 20px; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+  .depoimento blockquote { margin: 0; color: var(--text-2); }
+  .depoimento figcaption { font-size: 15px; }
+  .depoimento figcaption span { color: var(--text-3); }
+  .faq details { background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+                 padding: 0 18px; margin-bottom: 10px; }
+  .faq summary { cursor: pointer; padding: 16px 0; font-weight: 600; list-style: none;
+                 display: flex; justify-content: space-between; gap: 16px; }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::after { content: "+"; color: var(--tinta); font-size: 1.4rem; line-height: 1; }
+  .faq details[open] summary::after { content: "–"; }
+  .faq details p { margin: 0 0 16px; color: var(--text-2); }
+  .embarque { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+              list-style: none; padding: 0; margin: 0; }
+  .embarque li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .embarque small { display: block; color: var(--text-3); font-size: 14px; }
+  .nota-embarque { color: var(--text-2); font-size: 15px; margin-top: 12px; }
+  .cartoes-info { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .cartao-info { background: var(--surface); border: 1px solid var(--line); border-radius: var(--raio); padding: 20px; }
+  .cartao-info h3 { font-size: 1.05rem; margin-bottom: 8px; }
+  .cartao-info p, .cartao-info li { color: var(--text-2); font-size: 16px; }
+  .cartao-info ul { margin: 0; padding-left: 20px; }
+  .cartao-info p:last-child { margin-bottom: 0; }
+  .topo-direita { display: flex; align-items: center; gap: 12px; flex: none; }
+  .idiomas { display: flex; gap: 2px; font-size: 14px; font-weight: 600; }
+  .idiomas a { color: var(--text-3); text-decoration: none; padding: 6px 8px; border-radius: 8px; }
+  .idiomas a:hover { color: var(--text); background: var(--surface-2); }
+  .idiomas a.ativo { color: var(--text); background: var(--brand-soft); }
+  @media (max-width: 640px) {
+    section { padding: 40px 0; }
+    .so-largo { display: none; }
+  }
+  {% block estilo %}{% endblock %}
+</style>
+</head>
+<body>
+{% if em_previa %}<div class="previa">{{ t.previa }}</div>{% endif %}
+<header class="topo">
+  <div class="container">
+    <a class="marca" href="{{ pref }}/{{ sufixo }}">
+      {% if logo %}<img src="{{ logo }}" alt="{{ nome }}">{% endif %}
+      <span>{{ nome }}</span>
+    </a>
+    <div class="topo-direita">
+      {% if menu_idiomas %}
+      <nav class="idiomas" aria-label="{{ t.idioma }}">
+        {% for i in menu_idiomas %}<a href="{{ i.href }}" hreflang="{{ i.lang }}" lang="{{ i.lang }}" title="{{ i.nome }}"{% if i.ativo %} class="ativo" aria-current="true"{% endif %}>{{ i.curto }}</a>{% endfor %}
+      </nav>
+      {% endif %}
+      {% if whatsapp_link %}
+      <a class="btn btn-zap btn-sm" href="{{ whatsapp_link }}" data-clique data-passeio="" aria-label="{{ t.fale_conosco_aria }}">
+        {% include "_icone_zap.html" %}<span class="so-largo">{{ t.fale_conosco }}</span>
+      </a>
+      {% endif %}
+    </div>
+  </div>
+</header>
+<main>
+{% block conteudo %}{% endblock %}
+</main>
+<footer class="rodape">
+  <div class="container">
+    <div>
+      <strong>{{ nome }}</strong>
+      {% if endereco or (site and site.endereco) %}<div>{{ endereco or site.endereco }}</div>{% endif %}
+      {% if site and site.cadastur %}<div>CADASTUR {{ site.cadastur }}</div>{% endif %}
+    </div>
+    <div>
+      {% if site and site.instagram %}<div><a href="https://instagram.com/{{ site.instagram }}" rel="noopener" target="_blank">Instagram @{{ site.instagram }}</a></div>{% endif %}
+      {% if site and site.email %}<div><a href="mailto:{{ site.email }}">{{ site.email }}</a></div>{% endif %}
+    </div>
+  </div>
+</footer>
+<script nonce="{{ nonce }}">
+  // O botão leva ao WhatsApp com a mensagem pronta e o código do site. O link
+  // do próprio <a> já funciona sem script (sem o código); com script, o código
+  // é pedido ao servidor antes de sair, e é ele que transforma a conversa em
+  // ficha e orçamento quando chega.
+  (function () {
+    var previa = new URLSearchParams(location.search).get("previa");
+    function sair(dados, reserva) {
+      var url = "/api/publico/clique" + (previa ? "?previa=" + encodeURIComponent(previa) : "");
+      var pronto = false;
+      var limite = setTimeout(function () { if (!pronto) { pronto = true; location.href = reserva; } }, 2500);
+      fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
+                   body: JSON.stringify(dados) })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (j) { if (!pronto) { pronto = true; clearTimeout(limite); location.href = (j && j.link) || reserva; } })
+        .catch(function () { if (!pronto) { pronto = true; clearTimeout(limite); location.href = reserva; } });
+    }
+    document.addEventListener("click", function (e) {
+      var a = e.target.closest("[data-clique]");
+      if (!a) return;
+      e.preventDefault();
+      var form = a.closest("form");
+      var dados = { passeio: a.getAttribute("data-passeio") || null, pagina: location.pathname,
+                    referencia: document.referrer || null, adultos: 0, criancas: 0,
+                    idioma: (document.documentElement.lang || "pt").slice(0, 2) };
+      if (form) {
+        dados.dia = form.dia ? (form.dia.value || null) : null;
+        dados.adultos = form.adultos ? parseInt(form.adultos.value || "0", 10) : 0;
+        dados.criancas = form.criancas ? parseInt(form.criancas.value || "0", 10) : 0;
+      }
+      sair(dados, a.getAttribute("href"));
+    });
+  })();
+</script>
+</body>
+</html>

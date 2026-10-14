@@ -1,0 +1,26 @@
+# Segredos. Nenhum .env entra no repositório, com uma exceção:
+# frontend/.env.production não carrega segredo e precisa estar versionado
+# (ver o comentário dentro dele).
+.env
+.env.*
+!.env.example
+!frontend/.env.production
+
+# Dependências e artefatos
+node_modules/
+frontend/build/
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# Mídia de clientes (binários enviados e recebidos pelo WhatsApp)
+backend/media/
+
+# Editor e sistema
+.vscode/
+.idea/
+*.log
+Thumbs.db
+.DS_Store

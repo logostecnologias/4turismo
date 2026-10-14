@@ -1,0 +1,30 @@
+# Infraestrutura local do produto de turismo.
+#
+# Banco próprio do 4turismo, com volume e segredos só dele: um banco ou um
+# JWT_SECRET dividido com outro sistema faria um login de lá valer aqui.
+# Porta 27019 (fora da 27017 padrão, para não colidir com outro Mongo na máquina).
+# Só em 127.0.0.1: Mongo sem senha não pode ficar exposto na rede.
+#
+# Subir:   docker compose up -d     (o start-local.ps1 já faz isso)
+# Parar:   docker compose stop
+# Zerar:   docker compose down -v   (apaga o banco inteiro)
+
+name: logos-turismo
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: turismo-mongo
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:27019:27017"
+    volumes:
+      - turismo-mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  turismo-mongo-data:

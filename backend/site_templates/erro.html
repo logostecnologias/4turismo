@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="{{ html_lang or 'pt-BR' }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>{{ t.nao_encontrada }}</title>
+<style>
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+         background: {{ paleta.bg }}; color: {{ paleta.text }}; font-family: system-ui, sans-serif;
+         padding: 16px; text-align: center; }
+  h1 { font-size: 1.6rem; margin: 0 0 8px; }
+  p { color: {{ paleta.text2 }}; margin: 0; }
+</style>
+</head>
+<body>
+  <div>
+    <h1>{{ t.nao_encontrada }}</h1>
+    <p>{{ t.nao_encontrada_sub }}</p>
+  </div>
+</body>
+</html>

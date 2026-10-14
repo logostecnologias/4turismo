@@ -1,0 +1,12 @@
+{
+  "name": "logos-turismo",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n backend,frontend -c blue,green \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "dev:backend": "cd backend && python -m uvicorn server:app --reload --port 8010",
+    "dev:frontend": "cd frontend && npm start"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

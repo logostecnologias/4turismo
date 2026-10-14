@@ -1,0 +1,25 @@
+{# Depoimentos que a agência cadastrou. A seção inteira some sem nenhum.
+   Não são traduzidos: são a fala de um turista. Fora do português, a página diz isso. #}
+{% if depoimentos %}
+<section class="secao-clara" id="depoimentos">
+  <div class="container">
+    <div class="secao-titulo">
+      <h2>{{ t.quem_ja_foi }}</h2>
+      {% if avaliacoes %}<p>{% include "_avaliacao.html" %}</p>{% endif %}
+    </div>
+    <div class="depoimentos">
+      {% for d in depoimentos %}
+      <figure class="depoimento" lang="pt-BR">
+        {% if d.nota %}<div class="estrelas" aria-label="{{ d.nota }}/5">{% for i in range(5) %}{{ "★" if i < d.nota else "☆" }}{% endfor %}</div>{% endif %}
+        <blockquote>“{{ d.texto }}”</blockquote>
+        <figcaption><strong>{{ d.nome }}</strong>{% if d.origem %} <span>· {{ d.origem }}</span>{% endif %}</figcaption>
+      </figure>
+      {% endfor %}
+    </div>
+    {% if t.depoimento_original %}<p class="nota-embarque">{{ t.depoimento_original }}</p>{% endif %}
+    {% if avaliacoes and avaliacoes.link %}
+    <p class="mais-link"><a href="{{ avaliacoes.link }}" target="_blank" rel="noopener nofollow">{{ t.ver_avaliacoes.format(fonte=avaliacoes.fonte) }}</a></p>
+    {% endif %}
+  </div>
+</section>
+{% endif %}

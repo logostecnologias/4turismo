@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block estilo %}
+  .hero { position: relative; color: #FFFFFF; background: var(--brand); overflow: hidden; }
+  .hero img.fundo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .hero .veu { position: absolute; inset: 0;
+               background: linear-gradient(180deg, rgba(0,0,0,.15) 0%, rgba(0,0,0,.6) 100%); }
+  .hero .container { position: relative; padding-top: 96px; padding-bottom: 72px; }
+  .hero.sem-capa .container { padding-top: 72px; padding-bottom: 56px; }
+  .hero.sem-capa { color: var(--brand-fg); }
+  .hero h1 { max-width: 18ch; color: inherit; }
+  .hero p.lead { font-size: 1.15rem; max-width: 46ch; opacity: .95; }
+  .hero .acoes { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+  .hero .selo-nota { background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.45); color: #FFFFFF;
+                     margin-top: 4px; backdrop-filter: blur(4px); }
+  .hero.sem-capa .selo-nota { background: rgba(255,255,255,.35); color: var(--brand-fg); border-color: transparent; }
+  .btn-claro { background: rgba(255,255,255,.16); color: #FFFFFF; border: 1px solid rgba(255,255,255,.5); }
+  .sobre-grade { display: grid; gap: 32px; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); align-items: start; }
+  .sobre-grade .texto { color: var(--text-2); max-width: 70ch; }
+  @media (max-width: 860px) { .sobre-grade { grid-template-columns: 1fr; } }
+  .vazio { color: var(--text-2); background: var(--surface); border: 1px dashed var(--line);
+           border-radius: var(--raio); padding: 32px; text-align: center; }
+{% endblock %}
+{% block conteudo %}
+<div class="hero {% if not capa %}sem-capa{% endif %}">
+  {% if capa %}<img class="fundo" src="{{ capa.src }}" srcset="{{ capa.srcset }}" sizes="{{ capa.sizes }}" alt="" fetchpriority="high"><div class="veu"></div>{% endif %}
+  <div class="container">
+    <h1>{{ site.chamada or nome }}</h1>
+    {% if site.chamada %}<p class="lead">{{ nome }}</p>{% endif %}
+    {% include "_avaliacao.html" %}
+    <div class="acoes">
+      {% if passeios %}<a class="btn btn-claro" href="#passeios">{{ t.ver_passeios }}</a>{% endif %}
+      {% if whatsapp_link %}
+      <a class="btn btn-zap" href="{{ whatsapp_link }}" data-clique data-passeio="">
+        {% include "_icone_zap.html" %}<span>{{ t.falar_whatsapp }}</span>
+      </a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<section id="passeios">
+  <div class="container">
+    <div class="secao-titulo">
+      <h2>{{ t.passeios }}</h2>
+      <p>{{ t.passeios_sub }}</p>
+    </div>
+    {% if passeios %}
+    <div class="grade">
+      {% for p in passeios %}
+      <a class="cartao" href="{{ p.url }}">
+        {% if p.foto %}<img class="foto" src="{{ p.foto.src }}" srcset="{{ p.foto.srcset }}" sizes="{{ p.foto.sizes }}" alt="{{ p.nome }}" loading="lazy">
+        {% else %}<div class="foto-vazia">{{ p.nome }}</div>{% endif %}
+        <div class="corpo">
+          <h3>{{ p.nome }}</h3>
+          {% if p.resumo %}<p style="margin:0;color:var(--text-2)">{{ p.resumo }}</p>{% endif %}
+          <div class="meta">
+            {% if p.duracao %}<span>⏱ {{ p.duracao }}</span>{% endif %}
+            {% if p.quando %}<span>🗓 {{ p.quando }}</span>{% endif %}
+          </div>
+          {% if p.preco %}<div class="preco">{{ p.preco }} <small>{{ t.por_pessoa }}</small></div>{% endif %}
+          <span class="mais">{{ t.ver_detalhes }}</span>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="vazio">{{ t.em_breve }}</div>
+    {% endif %}
+  </div>
+</section>
+
+{% if confianca %}
+<section class="secao-clara" id="por-que">
+  <div class="container">
+    <div class="secao-titulo">
+      <h2>{{ t.por_que }}</h2>
+      {% if confianca.anos %}<p>{{ t.ha_anos.format(n=confianca.anos) }}</p>{% endif %}
+    </div>
+    {% if confianca.diferenciais %}
+    <div class="diferenciais">
+      {% for d in confianca.diferenciais %}<div class="diferencial"><span class="ok" aria-hidden="true">✓</span><span>{{ d }}</span></div>{% endfor %}
+    </div>
+    {% endif %}
+    <div class="credenciais">
+      {% if confianca.cadastur %}<span>{{ t.cadastur.format(n=confianca.cadastur) }}</span>{% endif %}
+      {% if confianca.desde %}<span>{{ t.desde.format(n=confianca.desde) }}</span>{% endif %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{% include "_depoimentos.html" %}
+
+{% if embarque %}
+<section id="busca">
+  <div class="container">
+    <div class="secao-titulo">
+      <h2>{{ t.busca_titulo }}</h2>
+      <p>{{ t.busca_sub }}</p>
+    </div>
+    {% include "_embarque.html" %}
+  </div>
+</section>
+{% endif %}
+
+{% if guias %}
+<section class="secao-clara" id="guias">
+  <div class="container">
+    <div class="secao-titulo">
+      <h2>{{ t.guias }}</h2>
+      <p>{{ t.guias_sub }}</p>
+    </div>
+    {% set cartoes_guias = guias %}{% include "_guias.html" %}
+    {% if mais_guias %}<p class="mais-link"><a href="{{ pref }}/guias{{ sufixo }}">{{ t.guias }} →</a></p>{% endif %}
+  </div>
+</section>
+{% endif %}
+
+{% if faq %}
+<section class="{% if not embarque and not guias %}secao-clara{% endif %}" id="perguntas">
+  <div class="container">
+    <div class="secao-titulo"><h2>{{ t.perguntas }}</h2></div>
+    {% set perguntas = faq %}{% set abrir_primeira = true %}{% include "_faq.html" %}
+  </div>
+</section>
+{% endif %}
+
+{% if sobre or endereco or horario or pagamento or cancelamento %}
+<section class="secao-clara" id="sobre">
+  <div class="container sobre-grade">
+    <div>
+      {% if sobre %}
+      <h2>{{ t.sobre }}</h2>
+      <div class="texto">{% for par in sobre %}<p>{{ par }}</p>{% endfor %}</div>
+      {% endif %}
+    </div>
+    <div class="cartoes-info">
+      {% if endereco or horario %}
+      <div class="cartao-info">
+        <h3>{{ t.onde_estamos }}</h3>
+        {% if endereco %}<p>{{ endereco }}</p>{% endif %}
+        {% if horario %}<p>{{ t.atendimento }}: {{ horario }}</p>{% endif %}
+        {% if mapa %}<p><a href="{{ mapa }}" target="_blank" rel="noopener">{{ t.ver_mapa }}</a></p>{% endif %}
+      </div>
+      {% endif %}
+      {% if pagamento %}
+      <div class="cartao-info">
+        <h3>{{ t.pagamento }}</h3>
+        <ul>{% for f in pagamento %}<li>{{ f }}</li>{% endfor %}</ul>
+      </div>
+      {% endif %}
+      {% if cancelamento %}
+      <div class="cartao-info">
+        <h3>{{ t.cancelamento }}</h3>
+        {% for par in cancelamento.split("\n") if par.strip() %}<p>{{ par }}</p>{% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

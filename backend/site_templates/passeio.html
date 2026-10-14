@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block estilo %}
+  .voltar { display: inline-block; margin: 20px 0 8px; color: var(--text-2); text-decoration: none; font-size: 15px; }
+  .layout { display: grid; gap: 32px; grid-template-columns: minmax(0, 1fr) 380px; align-items: start;
+            padding-bottom: 56px; }
+  .galeria { display: grid; gap: 8px; grid-template-columns: repeat(4, 1fr); margin-bottom: 24px; }
+  .galeria figure { margin: 0; }
+  .galeria img { border-radius: 10px; aspect-ratio: 4 / 3; object-fit: cover; width: 100%; }
+  .galeria figure:first-child { grid-column: 1 / -1; }
+  .galeria figure:first-child img { aspect-ratio: 16 / 9; border-radius: var(--raio); }
+  .galeria figcaption { font-size: 13px; color: var(--text-3); margin-top: 4px; line-height: 1.35; }
+  .galeria figure:first-child figcaption { font-size: 14px; }
+  .sem-foto { aspect-ratio: 16 / 9; border-radius: var(--raio); background: var(--brand-soft);
+              display: flex; align-items: center; justify-content: center; color: var(--tinta);
+              font-family: var(--titulo); font-size: 2rem; margin-bottom: 24px; text-align: center; padding: 16px; }
+  .info { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 20px; padding: 0; list-style: none; }
+  .info li { background: var(--surface); border: 1px solid var(--line); border-radius: 999px;
+             padding: 6px 14px; font-size: 15px; color: var(--text-2); }
+  .texto p { color: var(--text-2); }
+  .bloco { margin-top: 36px; }
+  .bloco > h2 { font-size: 1.5rem; }
+  .roteiro { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--line); }
+  .roteiro li { position: relative; padding: 0 0 18px 22px; }
+  .roteiro li::before { content: ""; position: absolute; left: -7px; top: 6px; width: 12px; height: 12px;
+                        border-radius: 50%; background: var(--surface); border: 2px solid var(--tinta); }
+  .roteiro li:last-child { padding-bottom: 0; }
+  .roteiro .hora { display: block; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .roteiro .o-que { color: var(--text-2); }
+  .listas { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .lista { background: var(--surface); border: 1px solid var(--line); border-radius: var(--raio); padding: 20px; }
+  .lista h3 { font-size: 1.1rem; }
+  .lista ul { margin: 0; padding-left: 20px; color: var(--text-2); }
+  .reserva { position: sticky; top: 88px; background: var(--surface); border: 1px solid var(--line);
+             border-radius: var(--raio); padding: 24px; box-shadow: 0 10px 30px rgba(0,0,0,.06); }
+  .reserva .valor { font-size: 1.6rem; font-weight: 700; }
+  .reserva .valor small { font-size: .95rem; font-weight: 500; color: var(--text-3); }
+  .reserva .crianca { color: var(--text-2); font-size: 15px; margin-top: -2px; }
+  .reserva .selo-nota { margin-top: 12px; border: 0; padding: 0; background: none; font-size: 14px; }
+  .campo { display: block; margin-top: 16px; }
+  .campo span { display: block; font-size: 14px; font-weight: 600; color: var(--text-2); margin-bottom: 6px; }
+  .campo select { width: 100%; font: inherit; font-size: 16px; padding: 12px; border-radius: 10px;
+                  border: 1px solid var(--line); background: var(--surface-2); color: var(--text); }
+  .duas { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
+  .reserva .btn { width: 100%; margin-top: 20px; }
+  .nota { font-size: 13px; color: var(--text-3); margin-top: 12px; text-align: center; }
+  .sem-data { font-size: 14px; color: var(--text-2); margin-top: 12px; }
+  .barra-reserva { display: none; }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    .reserva { position: static; scroll-margin-top: 80px; }
+    /* No celular a caixa de reserva cai no fim da página, depois de todo o
+       conteúdo: a barra fixa leva até ela sem o turista rolar tudo. */
+    .barra-reserva { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 15;
+                     align-items: center; justify-content: space-between; gap: 12px;
+                     padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+                     background: var(--surface); border-top: 1px solid var(--line);
+                     box-shadow: 0 -6px 20px rgba(0,0,0,.08); }
+    .barra-reserva .valor { font-weight: 700; }
+    .barra-reserva .valor small { font-weight: 500; color: var(--text-3); }
+    .barra-reserva .btn { min-height: 44px; padding: 10px 18px; }
+    footer.rodape { padding-bottom: 96px; }
+  }
+{% endblock %}
+{% block conteudo %}
+<div class="container">
+  <a class="voltar" href="{{ pref }}/{{ sufixo }}">{{ t.todos_passeios }}</a>
+  <div class="layout">
+    <article>
+      {% if passeio.fotos %}
+      <div class="galeria">
+        {% for f in passeio.fotos %}
+        <figure>
+          <img src="{{ f.img.src }}" srcset="{{ f.img.srcset }}" sizes="{{ f.img.sizes }}" alt="{{ f.legenda or passeio.nome }}" {% if not loop.first %}loading="lazy"{% else %}fetchpriority="high"{% endif %}>
+          {% if f.legenda %}<figcaption>{{ f.legenda }}</figcaption>{% endif %}
+        </figure>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="sem-foto">{{ passeio.nome }}</div>
+      {% endif %}
+      <h1>{{ passeio.nome }}</h1>
+      <ul class="info">
+        {% if passeio.duracao %}<li>⏱ {{ passeio.duracao }}</li>{% endif %}
+        {% if passeio.quando %}<li>🗓 {{ passeio.quando }}</li>{% endif %}
+        {% if passeio.nivel %}<li>🥾 {{ passeio.nivel }}</li>{% endif %}
+        {% if passeio.idade_minima is not none %}<li>👨‍👩‍👧 {% if passeio.idade_minima %}{{ t.a_partir_de.format(n=passeio.idade_minima) }}{% else %}{{ t.todas_idades }}{% endif %}</li>{% endif %}
+      </ul>
+      <div class="texto">{% for par in passeio.paragrafos %}<p>{{ par }}</p>{% endfor %}</div>
+
+      {% if passeio.roteiro %}
+      <div class="bloco">
+        <h2>{{ t.como_e_o_dia }}</h2>
+        <ol class="roteiro">
+          {% for r in passeio.roteiro %}
+          <li>{% if r.hora %}<span class="hora">{{ r.hora }}</span>{% endif %}<span class="o-que">{{ r.texto }}</span></li>
+          {% endfor %}
+        </ol>
+      </div>
+      {% endif %}
+
+      {% if passeio.inclui or passeio.levar %}
+      <div class="bloco listas">
+        {% if passeio.inclui %}
+        <div class="lista"><h3>{{ t.inclui }}</h3><ul>{% for i in passeio.inclui %}<li>{{ i }}</li>{% endfor %}</ul></div>
+        {% endif %}
+        {% if passeio.levar %}
+        <div class="lista"><h3>{{ t.levar }}</h3><ul>{% for i in passeio.levar %}<li>{{ i }}</li>{% endfor %}</ul></div>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      {% if embarque %}
+      <div class="bloco">
+        <h2>{{ t.busca_titulo }}</h2>
+        {% include "_embarque.html" %}
+      </div>
+      {% endif %}
+
+      {% if passeio.melhor_epoca or passeio.chuva or cancelamento or pagamento %}
+      <div class="bloco">
+        <h2>{{ t.bom_saber }}</h2>
+        <div class="cartoes-info">
+          {% if passeio.melhor_epoca %}<div class="cartao-info"><h3>{{ t.melhor_epoca }}</h3><p>{{ passeio.melhor_epoca }}</p></div>{% endif %}
+          {% if passeio.chuva %}<div class="cartao-info"><h3>{{ t.se_chover }}</h3><p>{{ passeio.chuva }}</p></div>{% endif %}
+          {% if cancelamento %}
+          <div class="cartao-info"><h3>{{ t.cancelamento }}</h3>{% for par in cancelamento.split("\n") if par.strip() %}<p>{{ par }}</p>{% endfor %}</div>
+          {% endif %}
+          {% if pagamento %}<div class="cartao-info"><h3>{{ t.pagamento_curto }}</h3><ul>{% for f in pagamento %}<li>{{ f }}</li>{% endfor %}</ul></div>{% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+      {% if faq %}
+      <div class="bloco">
+        <h2>{{ t.perguntas_passeio }}</h2>
+        {% set perguntas = faq %}{% set abrir_primeira = false %}{% include "_faq.html" %}
+        {% if tem_faq_geral %}<p class="mais-link"><a href="{{ pref }}/{{ sufixo }}#perguntas">{{ t.mais_perguntas }}</a></p>{% endif %}
+      </div>
+      {% elif tem_faq_geral %}
+      <p class="mais-link bloco"><a href="{{ pref }}/{{ sufixo }}#perguntas">{{ t.perguntas }} →</a></p>
+      {% endif %}
+    </article>
+
+    <aside class="reserva" id="reservar">
+      {% if passeio.preco %}
+      <div class="valor">{{ passeio.preco }} <small>{{ t.por_adulto }}</small></div>
+      {% if passeio.preco_crianca %}<div class="crianca">{{ t.crianca }}: {{ passeio.preco_crianca }}</div>{% endif %}
+      {% else %}
+      <div class="valor" style="font-size:1.25rem">{{ t.consulte_valor }}</div>
+      {% endif %}
+      {% include "_avaliacao.html" %}
+      <form>
+        <label class="campo"><span>{{ t.data }}</span>
+          <select name="dia">
+            <option value="">{{ t.ainda_nao_sei }}</option>
+            {% for d in dias %}<option value="{{ d.dia }}">{{ d.rotulo }}</option>{% endfor %}
+          </select>
+        </label>
+        {% if not dias %}<div class="sem-data">{{ t.sem_datas }}</div>{% endif %}
+        <div class="duas">
+          <label class="campo"><span>{{ t.adultos }}</span>
+            <select name="adultos">{% for n in range(1, 21) %}<option value="{{ n }}" {% if n == 2 %}selected{% endif %}>{{ n }}</option>{% endfor %}</select>
+          </label>
+          <label class="campo"><span>{{ t.criancas }}</span>
+            <select name="criancas">{% for n in range(0, 11) %}<option value="{{ n }}">{{ n }}</option>{% endfor %}</select>
+          </label>
+        </div>
+        {% if whatsapp_link %}
+        <a class="btn btn-zap" href="{{ whatsapp_link }}" data-clique data-passeio="{{ passeio.slug }}">
+          {% include "_icone_zap.html" %}<span>{{ t.quero }}</span>
+        </a>
+        <div class="nota">{{ t.nota_reserva }}</div>
+        {% endif %}
+      </form>
+    </aside>
+  </div>
+</div>
+{% if guias %}
+<section class="secao-clara">
+  <div class="container">
+    <div class="secao-titulo"><h2>{{ t.guias_relacionados }}</h2></div>
+    {% set cartoes_guias = guias %}{% include "_guias.html" %}
+  </div>
+</section>
+{% endif %}
+{% include "_depoimentos.html" %}
+<div class="barra-reserva">
+  <span class="valor">{% if passeio.preco %}{{ passeio.preco }} <small>{{ t.por_adulto }}</small>{% else %}{{ passeio.nome }}{% endif %}</span>
+  <a class="btn btn-zap" href="#reservar">{{ t.escolher_data }}</a>
+</div>
+{% endblock %}

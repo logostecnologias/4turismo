@@ -1,0 +1,16 @@
+{# Cartões de guia: na inicial, na lista e no fim de um passeio ou de outro guia. #}
+{% if cartoes_guias %}
+<div class="grade">
+  {% for g in cartoes_guias %}
+  <a class="cartao" href="{{ g.url }}">
+    {% if g.capa %}<img class="foto" src="{{ g.capa.src }}" srcset="{{ g.capa.srcset }}" sizes="{{ g.capa.sizes }}" alt="" loading="lazy">{% endif %}
+    <div class="corpo">
+      <h3>{{ g.titulo }}</h3>
+      {% if g.resumo %}<p style="margin:0;color:var(--text-2)">{{ g.resumo }}</p>{% endif %}
+      <div class="meta"><span>⏱ {{ g.minutos }} min</span></div>
+      <span class="mais">{{ t.ver_guia }}</span>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}

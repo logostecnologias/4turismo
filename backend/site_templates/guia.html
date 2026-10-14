@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block estilo %}
+  .voltar { display: inline-block; margin: 20px 0 8px; color: var(--text-2); text-decoration: none; font-size: 15px; }
+  .artigo { max-width: 760px; padding-bottom: 48px; }
+  .artigo .resumo { font-size: 1.15rem; color: var(--text-2); }
+  .artigo .meta-guia { color: var(--text-3); font-size: 14px; margin: -4px 0 20px; }
+  .artigo .capa { margin: 8px 0 28px; }
+  .artigo .capa img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--raio); }
+  .artigo h2 { margin-top: 1.6em; font-size: 1.5rem; }
+  .artigo h3 { margin-top: 1.2em; }
+  .artigo p, .artigo li { color: var(--text-2); }
+  .artigo ul { padding-left: 22px; margin: 0 0 1em; }
+  .artigo li { margin-bottom: 6px; }
+{% endblock %}
+{% block conteudo %}
+<div class="container">
+  <a class="voltar" href="{{ pref }}/guias{{ sufixo }}">{{ t.todos_guias }}</a>
+  <article class="artigo">
+    <h1>{{ guia.titulo }}</h1>
+    {% if guia.resumo %}<p class="resumo">{{ guia.resumo }}</p>{% endif %}
+    <p class="meta-guia">⏱ {{ guia.minutos }} min · {{ nome }}</p>
+    {% if guia.capa %}<figure class="capa"><img src="{{ guia.capa.src }}" srcset="{{ guia.capa.srcset }}" sizes="{{ guia.capa.sizes }}" alt="" fetchpriority="high"></figure>{% endif %}
+    {% for b in guia.blocos %}
+      {% if b.tipo == "h2" %}<h2>{{ b.texto }}</h2>
+      {% elif b.tipo == "h3" %}<h3>{{ b.texto }}</h3>
+      {% elif b.tipo == "lista" %}<ul>{% for i in b.itens %}<li>{{ i }}</li>{% endfor %}</ul>
+      {% else %}<p>{{ b.texto }}</p>{% endif %}
+    {% endfor %}
+  </article>
+</div>
+
+{% if passeios %}
+<section class="secao-clara">
+  <div class="container">
+    <div class="secao-titulo"><h2>{{ t.passeios_relacionados }}</h2></div>
+    <div class="grade">
+      {% for p in passeios %}
+      <a class="cartao" href="{{ p.url }}">
+        {% if p.foto %}<img class="foto" src="{{ p.foto.src }}" srcset="{{ p.foto.srcset }}" sizes="{{ p.foto.sizes }}" alt="{{ p.nome }}" loading="lazy">
+        {% else %}<div class="foto-vazia">{{ p.nome }}</div>{% endif %}
+        <div class="corpo">
+          <h3>{{ p.nome }}</h3>
+          {% if p.resumo %}<p style="margin:0;color:var(--text-2)">{{ p.resumo }}</p>{% endif %}
+          {% if p.preco %}<div class="preco">{{ p.preco }} <small>{{ t.por_pessoa }}</small></div>{% endif %}
+          <span class="mais">{{ t.ver_detalhes }}</span>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{% if outros %}
+<section>
+  <div class="container">
+    <div class="secao-titulo"><h2>{{ t.guias }}</h2></div>
+    {% set cartoes_guias = outros %}{% include "_guias.html" %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}

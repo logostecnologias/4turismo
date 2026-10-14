@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="1 42 960 960" role="img" aria-label="4turismo">
+  <!-- Logo do 4turismo, vetorizada da arte do cliente (coordenadas da imagem de 1024px).
+       O traço é uma linha só (diagonal + barra) com pontas e quina redondas; as
+       facetas são polígonos recortados por máscara dentro dele. A haste do 4 e o
+       sol são peças à parte, por cima. -->
+  <defs>
+    <mask id="l4-traco" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
+      <path d="M655 153 L200 645 L763 645" fill="none" stroke="#fff" stroke-width="194"
+        stroke-linecap="round" stroke-linejoin="round"/>
+    </mask>
+    <linearGradient id="l4-noite" gradientUnits="userSpaceOnUse" x1="420" y1="330" x2="150" y2="740">
+      <stop offset="0" stop-color="#0D6E8A"/>
+      <stop offset="1" stop-color="#0B4766"/>
+    </linearGradient>
+    <linearGradient id="l4-sol-faixa" gradientUnits="userSpaceOnUse" x1="680" y1="60" x2="400" y2="460">
+      <stop offset="0" stop-color="#F5B841"/>
+      <stop offset="1" stop-color="#EAA43A"/>
+    </linearGradient>
+    <linearGradient id="l4-lagoa-barra" gradientUnits="userSpaceOnUse" x1="330" y1="0" x2="860" y2="0">
+      <stop offset="0" stop-color="#1FC6B9"/>
+      <stop offset="0.55" stop-color="#18AEAD"/>
+      <stop offset="1" stop-color="#0F8F9E"/>
+    </linearGradient>
+    <linearGradient id="l4-haste" gradientUnits="userSpaceOnUse" x1="0" y1="384" x2="0" y2="988">
+      <stop offset="0" stop-color="#1FC6B9"/>
+      <stop offset="1" stop-color="#0D8A9C"/>
+    </linearGradient>
+    <linearGradient id="l4-sol" gradientUnits="userSpaceOnUse" x1="0" y1="116" x2="0" y2="304">
+      <stop offset="0" stop-color="#FFC84E"/>
+      <stop offset="1" stop-color="#F6A623"/>
+    </linearGradient>
+  </defs>
+
+  <g mask="url(#l4-traco)">
+    <rect x="0" y="0" width="1024" height="1024" fill="url(#l4-noite)"/>
+    <polygon fill="url(#l4-sol-faixa)" points="145,135 530,495 900,100 700,0"/>
+    <polygon fill="url(#l4-lagoa-barra)" points="307,512 1000,512 1000,800 436,800"/>
+  </g>
+
+  <path d="M655 481 L655 891" fill="none" stroke="url(#l4-haste)" stroke-width="194" stroke-linecap="round"/>
+  <circle cx="220" cy="210" r="94" fill="url(#l4-sol)"/>
+</svg>

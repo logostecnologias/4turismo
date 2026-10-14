@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="122 78 1012 1012" width="1024" height="1024" role="img" aria-label="4turismo">
+  <rect x="122" y="78" width="1012" height="1012" fill="#FFFFFF"/>
+  <!-- Logo do 4turismo, vetorizada da arte original (coordenadas da imagem de 1254px).
+       O traço é uma linha só (diagonal + barra) com pontas e quina redondas; as
+       facetas são polígonos recortados por máscara dentro dele. -->
+  <defs>
+    <mask id="l4-traco" maskUnits="userSpaceOnUse" x="0" y="0" width="1254" height="1254">
+      <path d="M900 302 L345 867 L905 867" fill="none" stroke="#fff" stroke-width="226"
+        stroke-linecap="round" stroke-linejoin="round"/>
+    </mask>
+    <mask id="l4-sol" maskUnits="userSpaceOnUse" x="0" y="0" width="1254" height="1254">
+      <circle cx="362" cy="315" r="108" fill="#fff"/>
+    </mask>
+    <linearGradient id="l4-barra" gradientUnits="userSpaceOnUse" x1="430" y1="760" x2="1020" y2="960">
+      <stop offset="0" stop-color="#FFA414"/>
+      <stop offset="0.45" stop-color="#F47721"/>
+      <stop offset="1" stop-color="#EE3F22"/>
+    </linearGradient>
+    <linearGradient id="l4-topo" gradientUnits="userSpaceOnUse" x1="900" y1="190" x2="640" y2="470">
+      <stop offset="0" stop-color="#FFA714"/>
+      <stop offset="1" stop-color="#F7871A"/>
+    </linearGradient>
+    <linearGradient id="l4-meio" gradientUnits="userSpaceOnUse" x1="560" y1="600" x2="830" y2="380">
+      <stop offset="0" stop-color="#FF8A12"/>
+      <stop offset="1" stop-color="#E5482C"/>
+    </linearGradient>
+    <linearGradient id="l4-roxo-dir" gradientUnits="userSpaceOnUse" x1="980" y1="300" x2="780" y2="590">
+      <stop offset="0" stop-color="#9A22B6"/>
+      <stop offset="1" stop-color="#4E15A0"/>
+    </linearGradient>
+    <linearGradient id="l4-roxo-faixa" gradientUnits="userSpaceOnUse" x1="300" y1="720" x2="650" y2="640">
+      <stop offset="0" stop-color="#7124CB"/>
+      <stop offset="1" stop-color="#4B1792"/>
+    </linearGradient>
+    <linearGradient id="l4-roxo-base" gradientUnits="userSpaceOnUse" x1="250" y1="820" x2="600" y2="960">
+      <stop offset="0" stop-color="#46188E"/>
+      <stop offset="1" stop-color="#33116B"/>
+    </linearGradient>
+    <linearGradient id="l4-sol-base" gradientUnits="userSpaceOnUse" x1="300" y1="210" x2="330" y2="380">
+      <stop offset="0" stop-color="#FFAD12"/>
+      <stop offset="1" stop-color="#FF8A0C"/>
+    </linearGradient>
+    <linearGradient id="l4-sol-roxo" gradientUnits="userSpaceOnUse" x1="460" y1="300" x2="370" y2="420">
+      <stop offset="0" stop-color="#8E22B2"/>
+      <stop offset="1" stop-color="#5815A2"/>
+    </linearGradient>
+  </defs>
+
+  <g mask="url(#l4-traco)">
+    <rect x="0" y="0" width="1254" height="1254" fill="url(#l4-barra)"/>
+    <polygon fill="url(#l4-topo)" points="602,445 835,352 1050,292 1050,120 560,120 430,445"/>
+    <polygon fill="url(#l4-meio)" points="602,445 835,352 765,598 661,697 500,533"/>
+    <polygon fill="url(#l4-roxo-dir)" points="835,352 1050,292 1050,430 765,598"/>
+    <polygon fill="url(#l4-roxo-faixa)" points="500,533 661,697 648,712 420,780 240,786 120,786 120,560 380,400"/>
+    <path fill="url(#l4-roxo-base)" d="M232 792 Q 330 742 420 780 L 666 990 L 110 990 L 110 792 Z"/>
+  </g>
+
+  <g mask="url(#l4-sol)">
+    <rect x="240" y="190" width="250" height="250" fill="url(#l4-sol-base)"/>
+    <path fill="#F2541B" d="M283 388 L437 236 L490 236 L490 286 L468 288 Q 386 316 352 426 L 290 450 Z"/>
+    <path fill="url(#l4-sol-roxo)" d="M468 288 Q 386 316 352 426 L 490 460 L 490 288 Z"/>
+  </g>
+</svg>

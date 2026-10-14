@@ -1,0 +1,7 @@
+{# Selo da nota: "★★★★★ 4,9 · 320 avaliações no Google". Vira link quando a agência deu o endereço. #}
+{% if avaliacoes %}
+{% set rotulo = t.nota_de.format(nota=avaliacoes.nota, fonte=avaliacoes.fonte) %}
+{% set conteudo %}<span class="estrelas" aria-hidden="true">{% for i in range(5) %}{{ "★" if i < avaliacoes.estrelas else "☆" }}{% endfor %}</span><span><strong>{{ avaliacoes.nota }}</strong>{% if avaliacoes.total %} · {{ avaliacoes.total }} {{ t.avaliacoes_no }}{% else %} {{ t.no }}{% endif %} {{ avaliacoes.fonte }}</span>{% endset %}
+{% if avaliacoes.link %}<a class="selo-nota" href="{{ avaliacoes.link }}" target="_blank" rel="noopener nofollow" aria-label="{{ rotulo }}">{{ conteudo }}</a>
+{% else %}<span class="selo-nota" aria-label="{{ rotulo }}">{{ conteudo }}</span>{% endif %}
+{% endif %}
