@@ -454,6 +454,25 @@ async def send_text(token: str, number: str, text: str) -> dict:
     return await _request("POST", "/chat/send/text", _token_headers(token), {"Phone": number, "Body": text})
 
 
+async def presence(token: str, number: str, audio: bool = False) -> None:
+    """Mostra "digitando…" (ou "gravando áudio…") para o contato.
+
+    Uma chamada só, curta e sem retry, e o erro é engolido: o indicador é
+    enfeite de ritmo, e a mensagem que vem depois tem de sair do mesmo jeito.
+    Passar por `_request` repetiria três vezes um enfeite e atrasaria a
+    resposta justamente quando a ponte está mal. Não é preciso mandar
+    `paused` depois: a mensagem enviada derruba o indicador.
+    """
+    try:
+        await _get_client().post(
+            f"{_base()}/chat/presence", headers=_token_headers(token),
+            json={"Phone": number, "State": "composing",
+                  "Media": "audio" if audio else ""},
+            timeout=5.0)
+    except Exception as e:
+        logger.debug("Indicador de digitação falhou para %s: %s", number, e)
+
+
 _MEDIA_ENDPOINTS = {
     "image": ("/chat/send/image", "Image"),
     "audio": ("/chat/send/audio", "Audio"),

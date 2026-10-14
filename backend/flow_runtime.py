@@ -4,7 +4,9 @@ real messages through the official Cloud API (see whatsapp_client).
 """
 import asyncio
 import logging
+import random
 import re
+import time
 import unicodedata
 import uuid
 from contextlib import asynccontextmanager
@@ -270,9 +272,62 @@ async def _enviar_menu(db, tenant_id, cred, number, session_id, o):
                    mtype="menu", meta={"menu": meta, "wamid": wamid})
 
 
-async def _send_outputs(db, tenant_id, cred, number, session_id, outputs):
+# Ritmo humano nas respostas automáticas do canal não oficial. O WhatsApp
+# reconhece robô pelo comportamento: resposta em milissegundos, várias
+# mensagens no mesmo segundo e nunca aparecer "digitando…". Na Cloud API não
+# há esse risco, e a pausa só deixaria o bot mais lento.
+RITMO_BASE = 1.0       # segundos antes de qualquer texto
+RITMO_POR_CHAR = 0.03
+RITMO_MAX = 5.0
+RITMO_MIDIA = 2.0
+RITMO_VARIACAO = (0.8, 1.25)  # intervalo exato também denuncia robô
+# O nó Aguardar segura a conversa (a pausa roda dentro da trava dela), então
+# tem teto. O editor limita o campo ao mesmo valor.
+AGUARDAR_MAX = 60
+
+
+def tempo_digitando(o: dict) -> float:
+    """Quanto o "digitando…" dura antes desta saída: proporcional ao texto."""
+    if o["type"] == "media":
+        alvo = RITMO_MIDIA
+    else:
+        alvo = min(RITMO_BASE + len(o.get("content") or "") * RITMO_POR_CHAR, RITMO_MAX)
+    return alvo * random.uniform(*RITMO_VARIACAO)
+
+
+async def _ritmo(cred, number, o: dict, inicio: float | None) -> None:
+    """Mostra "digitando…" e espera antes de uma saída automática.
+
+    `inicio` é o `time.monotonic()` de quando a mensagem do contato chegou, e
+    só vem na primeira saída: o tempo que a IA levou para responder já conta
+    como digitação, senão uma resposta de 6s ganharia mais 4s de pausa.
+    """
+    espera = tempo_digitando(o)
+    if inicio is not None:
+        espera -= time.monotonic() - inicio
+    kind = o.get("media_type") or (o.get("doc") or {}).get("kind")
+    await whatsapp.digitando(cred, number, audio=kind == "audio")
+    if espera > 0:
+        await asyncio.sleep(espera)
+
+
+async def _send_outputs(db, tenant_id, cred, number, session_id, outputs,
+                        inicio: float | None = None):
+    """`inicio` marca a resposta como automática (bot ou IA): no canal não
+    oficial cada mensagem ganha o ritmo humano. Mensagem de atendente não
+    passa por aqui e não ganha pausa nenhuma: já é digitada por gente."""
+    ritmo = inicio is not None and getattr(cred, "canal", None) == whatsapp.CANAL_WUZAPI
     for o in outputs:
         try:
+            if o["type"] == "delay":
+                # O nó Aguardar espera de verdade no envio real; antes ele só
+                # aparecia no chat de teste e o fluxo saía todo colado.
+                await asyncio.sleep(min(max(int(o.get("seconds") or 0), 0), AGUARDAR_MAX))
+                inicio = None
+                continue
+            if ritmo and o["type"] in ("text", "menu", "media"):
+                await _ritmo(cred, number, o, inicio)
+                inicio = None
             if o["type"] == "text":
                 wamid = await whatsapp.send_text(cred, number, o["content"])
                 await _log_msg(db, session_id, tenant_id, "enviada", o["content"],
@@ -482,12 +537,17 @@ async def handle_incoming_message(tenant_id: str, from_number: str, text: str,
     `conversation_sessions` usa. Ela é montada antes de qualquer leitura do
     banco, senão a corrida aconteceria justamente na busca da sessão.
     """
+    # O instante da chegada, antes da trava: o tempo que a mensagem esperou a
+    # anterior sair e o que a IA levou para responder já contam como
+    # "digitando…" no ritmo do canal não oficial (ver `_ritmo`).
+    inicio = time.monotonic()
     async with _uma_por_vez(f"{tenant_id}:{connection_id or '-'}:{from_number}"):
         return await _processar_mensagem(tenant_id, from_number, text, message_id,
-                                         connection_id, push_name, media, escolha)
+                                         connection_id, push_name, media, escolha,
+                                         inicio=inicio)
 
 
-async def _processar_mensagem(tenant_id: str, from_number: str, text: str, message_id: str, connection_id: str | None = None, push_name: str | None = None, media: dict | None = None, escolha: dict | None = None):
+async def _processar_mensagem(tenant_id: str, from_number: str, text: str, message_id: str, connection_id: str | None = None, push_name: str | None = None, media: dict | None = None, escolha: dict | None = None, inicio: float | None = None):
     """Called from webhook. Advances the conversation for this contact.
 
     `connection_id` identifies exactly which whatsapp_connection (and thus
@@ -705,7 +765,7 @@ async def _processar_mensagem(tenant_id: str, from_number: str, text: str, messa
                      "$inc": {"unread_count": 1}},
                 )
                 if cred and outputs:
-                    await _send_outputs(db, tenant_id, cred, from_number, session_id, outputs)
+                    await _send_outputs(db, tenant_id, cred, from_number, session_id, outputs, inicio=inicio)
                 return
 
             # Sem bot e sem agente: fila humana, em vez de engolir a mensagem.
@@ -721,7 +781,7 @@ async def _processar_mensagem(tenant_id: str, from_number: str, text: str, messa
             # montada e descartada, e o contato ficava sem resposta até alguém
             # assumir a conversa.
             if cred and outputs:
-                await _send_outputs(db, tenant_id, cred, from_number, session_id, outputs)
+                await _send_outputs(db, tenant_id, cred, from_number, session_id, outputs, inicio=inicio)
             # A conversa aberta por um aviso de agendamento também nasce sem
             # bot, e cai aqui quando o contato responde outra coisa que não
             # CONFIRMAR/CANCELAR ("posso remarcar?"). Dizer "bot indisponível"
@@ -915,7 +975,7 @@ async def _processar_mensagem(tenant_id: str, from_number: str, text: str, messa
 
     # send outputs through the Cloud API
     if cred and outputs:
-        await _send_outputs(db, tenant_id, cred, from_number, session_id, outputs)
+        await _send_outputs(db, tenant_id, cred, from_number, session_id, outputs, inicio=inicio)
 
 
 def destino(contact: dict | None) -> str | None:

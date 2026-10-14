@@ -262,7 +262,9 @@ async def _process_node(node, flow, session, outputs):
 
     if ntype == "delay":
         seconds = int(data.get("seconds", 1))
-        outputs.append({"type": "delay", "seconds": min(seconds, 3)})
+        # O envio real espera de verdade (flow_runtime._send_outputs), com o mesmo
+        # teto de 60s do editor: a espera segura a conversa.
+        outputs.append({"type": "delay", "seconds": max(0, min(seconds, 60))})
         # in test mode we do not actually sleep for long
         await asyncio.sleep(min(seconds, 1) * 0.2)
         return _find_next(edges, node["id"])

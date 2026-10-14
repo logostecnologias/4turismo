@@ -531,6 +531,17 @@ async def send_template(cred: Credencial, numero: str, nome: str, idioma: str,
     return await _enviar(cred, {"to": numero, "type": "template", "template": modelo})
 
 
+async def digitando(cred: Credencial, numero: str, audio: bool = False) -> None:
+    """"Digitando…" antes de uma resposta automática, só no canal não oficial.
+
+    Na Cloud API o indicador exige o id da mensagem recebida (ver
+    `marcar_lida`) e o número não corre risco de bloqueio por ritmo, então
+    aqui é não-operação. Nunca levanta.
+    """
+    if cred.canal == CANAL_WUZAPI:
+        await _wuz().presence(cred.token, numero, audio=audio)
+
+
 async def marcar_lida(cred: Credencial, wamid: str, digitando: bool = False) -> None:
     """Marca a mensagem como lida e, opcionalmente, mostra "digitando...".
 
