@@ -43,6 +43,7 @@ O 4turismo nasceu de uma base de atendimento por WhatsApp já existente (multi-t
 - **Segredos próprios**: `JWT_SECRET` e `CREDENTIALS_KEY` são deste sistema e de nenhum outro. Segredo dividido faria um cookie de sessão valer noutro sistema, e as credenciais cifradas (token da Cloud API, chave de IA) de um seriam decifráveis pelo outro; `backend/.env.example` diz como gerar
 - **Nunca copiar `.env` entre projetos.** Segredo repetido junta dois sistemas sem erro nenhum aparecer
 - **Ainda não há deploy**; será escrito quando houver servidor
+- **Observabilidade** (`observabilidade.py`, 16/10/2026): `/api/health` pinga o Mongo (3s) e confere se os três workers estão vivos, e responde **503** quando algo caiu: é o endereço do monitor de disponibilidade externo. Sentry só com `SENTRY_DSN`, configurado para **não** mandar corpo de requisição, cookie, IP nem variáveis locais (corpo é mensagem de turista; variável local pode ser token decifrado) e sem rastreamento de desempenho. `logger.error`/`exception` dos workers viram evento. O frontend ainda não manda erro para lugar nenhum
 
 ### Repositório
 - Git iniciado na fase 0 (antes não havia). `core.autocrlf=false` no repositório: os arquivos têm fim de linha misto, e a conversão reescreveria dezenas deles no primeiro commit. `.gitignore` exclui todo `.env` exceto `frontend/.env.production` (que não tem segredo e precisa estar versionado) e `backend/media/`
@@ -86,7 +87,8 @@ O 4turismo nasceu de uma base de atendimento por WhatsApp já existente (multi-t
 ### Solicitação e prazo
 - `scheduling_settings.prazo_solicitacao_horas` (24 padrão; 0 = não expira). `expira_em` nunca passa do início da própria saída
 - Vencida é cancelada com motivo "Solicitação não confirmada no prazo", devolvendo os lugares, por `saidas.expirar_solicitacoes`: na varredura do `agenda_worker` (a cada 5 min, antes dos lembretes) **e** na hora de reservar quando a saída parece cheia, que é quando um lugar preso faz diferença
-- Confirmar (`PATCH /status` para `confirmado`) tira o prazo e, com `avisar`, manda a confirmação ao turista. O turista **não é avisado** quando a solicitação expira (pendência)
+- Confirmar (`PATCH /status` para `confirmado`) tira o prazo e, com `avisar`, manda a confirmação ao turista
+- **O turista é avisado quando a solicitação vence** (16/10/2026; `avisar_expiracao`, ligado por padrão, mensagem `expiracao` com modelo aprovado opcional `template_expiracao`). A expiração só grava `aviso_expiracao: "pendente"` na mesma gravação do cancelamento, e **quem envia é sempre o worker** (`agenda_worker._avisar_expiradas`): a expiração também roda dentro de `reservar`, no meio da conversa de outro turista. A marca vira `enviado`/`dispensado` antes do envio, condicionada a ainda estar pendente (como o lembrete). Aviso desligado ou passeio que começou há mais de 12h (servidor parado) é dispensado. O texto não diz "confirmado" nem promete vaga. Índice parcial em `aviso_expiracao`
 
 ### Lembrete
 - Sai **só para reserva Confirmada**: lembrar de uma solicitação que a agência não aceitou faria o turista achar que está tudo certo. O CONFIRMAR do turista grava `presenca_confirmada_em` e **não** mexe no status (quem confirma a reserva é a agência). CANCELAR cancela e devolve os lugares
@@ -111,7 +113,7 @@ O 4turismo nasceu de uma base de atendimento por WhatsApp já existente (multi-t
 - **Relatório de agenda**: `por_profissional` saiu; `por_servico` virou por passeio, com `pessoas`, `saidas_oferecidas`, `lugares_oferecidos` (somados da grade, descontando feriado e dias antes de o passeio existir) e `ocupacao` (pode passar de 100% com encaixe)
 
 ### O que ficou de fora da fase 1
-- Turista não é avisado quando a solicitação expira; a agência também não recebe alerta de "solicitação perto de vencer" além da tela Hoje
+- ~~Turista não é avisado quando a solicitação expira~~: feito em 16/10/2026. A agência continua sem alerta de "solicitação perto de vencer" além da tela Hoje
 - ~~Guias e veículos, lista de embarque, ponto e horário de busca, cancelamento de saída em lote~~: feitos na fase 2
 - Preço por faixa etária além de adulto/criança, colo, preço de grupo
 - O prazo da solicitação na tela vai até 99:59 (campo de duração), embora a API aceite até 720h
@@ -148,7 +150,6 @@ O 4turismo nasceu de uma base de atendimento por WhatsApp já existente (multi-t
 - `solicitar_reserva` ganhou `ponto_embarque` (nome): casa com o ponto cadastrado; fora da lista vira o lugar em texto com a hora a combinar, **nunca recusa**. O prompt lista os pontos ativos com a antecedência
 
 ### O que ficou de fora da fase 2
-- Turista não é avisado quando a **solicitação** expira (pendência da fase 1, continua)
 - Aviso de cancelamento de saída sai um por um, em sequência; para uma saída de 40 grupos isso é um minuto de envio, sem fila nem retomada se o processo cair no meio (os já cancelados ficam cancelados; os não avisados aparecem em `sem_aviso` só na resposta daquela chamada)
 - Check-in de embarque (marcar quem embarcou na hora, pelo celular do guia) e rota da van ordenada por endereço
 - Capacidade do veículo não limita a saída: `resources.capacidade` é informativa, a capacidade continua sendo a do passeio/saída
@@ -597,7 +598,8 @@ O que muda de estrutura, e é a raiz de quase todas as decisões abaixo:
 - O **conteúdo das mensagens também é dado pessoal** (o contato digitou endereço, CPF, mandou foto de documento). Anonimizar redige o texto, apaga o arquivo de mídia do disco e marca `purged_at` — mesmo padrão do `media_retention`, para a bolha antiga mostrar "mídia expirada" em vez de imagem quebrada. A prévia na sessão (`last_message`) é redigida junto, senão o texto continuaria visível na lista de conversas
 - `numero_whatsapp` vira `anon-<id>`, não vazio: é o que impede uma importação futura de recriar a ficha achando que o número está livre
 - **`modo=apagar`** existe para contato de teste ou importação errada: leva conversas, mensagens, negócios e histórico, e a resposta diz exatamente o que foi. Só admin nas duas — é a operação mais destrutiva da base
-- **Mesclar move, não copia.** Conversas, negócios, atividades, e notas passam para a ficha que fica. Campo vazio herda o do secundário; campo preenchido **não** é sobrescrito, porque quem escolheu o principal escolheu os dados dele. Etiquetas são somadas e `opt_out` é a recusa mais restritiva das duas
+- **Reservas entram nas três operações** (16/10/2026; antes ficavam de fora, porque nasceram na fase 1, depois deste módulo). Anonimizar tira `contact_nome`, `contact_numero` e `embarque_obs` da reserva e a mantém (ocupação e receita); apagar passa por `saidas.apagar_reservas_do_contato`, que devolve os lugares das que ocupavam (apagar sem isso quebrava o contador); mesclar move as reservas. Coleção nova com `contact_id` precisa entrar nas três
+- **Mesclar move, não copia.** Conversas, negócios, atividades, notas e reservas passam para a ficha que fica. Campo vazio herda o do secundário; campo preenchido **não** é sobrescrito, porque quem escolheu o principal escolheu os dados dele. Etiquetas são somadas e `opt_out` é a recusa mais restritiva das duas
 - **Duplicado não é detectado por número**: ele já é único por empresa (o cadastro recusa com 409). Duplicata real é a mesma pessoa por dois números, e o que resta para reconhecê-la é e-mail ou nome. Contato anonimizado fica fora da varredura — todos passam a ter o mesmo nome-marcador, e agrupar por ele juntaria pessoas diferentes
 
 ### Testes (`backend/tests/`)

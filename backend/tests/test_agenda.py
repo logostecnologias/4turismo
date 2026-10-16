@@ -454,6 +454,65 @@ async def etapa_solicitacao_expira(ctx):
     await saidas.cancelar(DB, TENANT, p["id"])
     ctx["sexta"] = sexta
 
+async def etapa_aviso_expiracao(ctx):
+    """O turista é avisado quando a solicitação vence, uma vez só, pelo worker."""
+    _conectar_fake()
+    sexta = ctx["sexta"]
+    pendentes = await DB.appointments.find({"aviso_expiracao": "pendente"}).to_list(None)
+    check("as duas expiradas (na reserva e na varredura) ficam com aviso pendente",
+          len(pendentes) == 2, len(pendentes))
+
+    avisos = []
+
+    async def avisar_falso(db, tenant_id, doc, tipo, config=None, marcar_espera=False):
+        avisos.append((tipo, doc["id"]))
+        return True
+
+    original = agenda_worker.avisar
+    agenda_worker.avisar = avisar_falso
+    try:
+        agora = dominio._agora()
+        await agenda_worker._avisar_expiradas(DB, agora)
+        check("o worker avisa cada uma", sorted(avisos) ==
+              sorted(("expiracao", p["id"]) for p in pendentes), avisos)
+        marcas = [(await DB.appointments.find_one({"id": p["id"]}))["aviso_expiracao"]
+                  for p in pendentes]
+        check("e marca como enviado", marcas == ["enviado", "enviado"], marcas)
+        await agenda_worker._avisar_expiradas(DB, agora)
+        check("a passada seguinte não repete o aviso", len(avisos) == 2, avisos)
+
+        # Desligado na configuração: dispensa sem mandar.
+        await DB.scheduling_settings.update_one(
+            {"tenant_id": TENANT}, {"$set": {"avisar_expiracao": False}}, upsert=True)
+        p = await reservar(ctx, dia=sexta, hh=8, adultos=1, origem="bot")
+        await DB.appointments.update_one({"id": p["id"]}, {"$set": {
+            "expira_em": dominio._iso(agora - timedelta(minutes=1))}})
+        await saidas.expirar_solicitacoes(DB, agora)
+        await agenda_worker._avisar_expiradas(DB, agora)
+        doc = await DB.appointments.find_one({"id": p["id"]})
+        check("com o aviso desligado, nada sai", len(avisos) == 2
+              and doc["aviso_expiracao"] == "dispensado", doc.get("aviso_expiracao"))
+        await DB.scheduling_settings.update_one(
+            {"tenant_id": TENANT}, {"$set": {"avisar_expiracao": True}})
+
+        # Passeio que já passou há muito (servidor parado): notícia velha, dispensa.
+        p = await reservar(ctx, dia=sexta, hh=8, adultos=1, origem="bot")
+        await DB.appointments.update_one({"id": p["id"]}, {"$set": {
+            "expira_em": dominio._iso(agora - timedelta(minutes=1))}})
+        await saidas.expirar_solicitacoes(DB, agora)
+        depois = dominio._instante(p["inicio"]) + timedelta(hours=13)
+        await agenda_worker._avisar_expiradas(DB, depois)
+        doc = await DB.appointments.find_one({"id": p["id"]})
+        check("aviso de passeio que já aconteceu é dispensado", len(avisos) == 2
+              and doc["aviso_expiracao"] == "dispensado", doc.get("aviso_expiracao"))
+    finally:
+        agenda_worker.avisar = original
+
+    texto = agenda_worker.texto_de("expiracao", {**pendentes[0], "contact_nome": "Ana Souza"},
+                                   await dominio.configuracao(DB, TENANT))
+    check("o texto padrão não diz que estava confirmada", "Ana" in texto
+          and "confirmad" not in texto.lower().replace("confirmar", ""), texto)
+
 
 async def etapa_feriado_e_excecao(ctx):
     _conectar_fake()
@@ -1483,6 +1542,7 @@ async def _suite():
     await etapa_status(ctx)
     await etapa_alterar_pessoas(ctx)
     await etapa_solicitacao_expira(ctx)
+    await etapa_aviso_expiracao(ctx)
     await etapa_feriado_e_excecao(ctx)
     await etapa_antecedencia_e_encaixe(ctx)
     await etapa_proximos_dias(ctx)

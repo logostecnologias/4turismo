@@ -36,8 +36,15 @@ import flow_runtime
 import routes.scheduling as rs
 import routes.site as rsite
 import routes.site_publico as rpub
+import ai_runtime
 import server
 import sites
+
+# A função de verdade, guardada no import (antes de qualquer teste rodar):
+# `test_ia_agentes` troca `ai_runtime.responder_por_agente` por uma IA falsa e
+# não a devolve, e no mesmo processo a etapa "sem chave de IA" daqui recebia
+# resposta da falsa em vez do 400.
+_RESPONDER_REAL = ai_runtime.responder_por_agente
 
 TENANT, OUTRO = "t-site", "t-outro"
 ADMIN = {"id": "u-a", "tenant_id": TENANT, "role": "tenant_admin", "name": "Dona"}
@@ -55,6 +62,7 @@ def _conectar_fake():
     db_mod.get_db = lambda: DB
     for m in (rs, rsite, rpub, flow_runtime):
         m.get_db = lambda: DB
+    ai_runtime.responder_por_agente = _RESPONDER_REAL
     flow_runtime.whatsapp.send_text = fake_send
 
 

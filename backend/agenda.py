@@ -79,6 +79,10 @@ PADROES = {
     # Por quanto tempo uma solicitação feita pelo bot ou pela IA segura os
     # lugares esperando a agência confirmar. 0 = não expira.
     "prazo_solicitacao_horas": 24,
+    # Avisar o turista quando a solicitação vence sem a agência confirmar.
+    # Ligado: sem o aviso, ele acha que o passeio está de pé e aparece no
+    # ponto de embarque.
+    "avisar_expiracao": True,
 }
 
 # Teto de dias varridos quando alguém pede "o próximo horário livre". Sem ele,

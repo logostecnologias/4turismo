@@ -414,6 +414,39 @@ async def _libera(db, tenant_id: str, service_id: str, inicio: str, n: int):
         await db.saidas.update_one(chave, {"$set": {"reservados": 0, "updated_at": _now()}})
 
 
+async def apagar_reservas_do_contato(db, tenant_id: str, contact_id: str) -> int:
+    """Apaga as reservas de um contato, devolvendo os lugares das que ocupavam.
+
+    Só para a exclusão completa do contato (`contatos.apagar`). Apagar a reserva
+    sem devolver os lugares quebraria a invariante do contador, e a saída
+    ficaria lotada com lugar sobrando para sempre.
+
+    Cada reserva é apagada condicionada ao status lido, e o lugar só é devolvido
+    se o apagar pegou: um cancelamento no mesmo instante já devolveu o dele.
+    Apagar antes de liberar faz uma queda no meio deixar a saída com lugar a
+    menos, nunca vendida duas vezes.
+    """
+    reservas = await db.appointments.find(
+        {"tenant_id": tenant_id, "contact_id": contact_id},
+        {"_id": 0, "id": 1, "status": 1, "service_id": 1, "inicio": 1, "pessoas": 1},
+    ).to_list(None)
+    for r in reservas:
+        res = await db.appointments.delete_one(
+            {"id": r["id"], "tenant_id": tenant_id, "status": r["status"]})
+        if res.deleted_count and r["status"] in agenda.OCUPAM:
+            await _libera(db, tenant_id, r["service_id"], r["inicio"],
+                          int(r.get("pessoas") or 0))
+    # O que mudou de status entre a leitura e o apagar (e por isso ficou).
+    sobra = await db.appointments.find(
+        {"tenant_id": tenant_id, "contact_id": contact_id},
+        {"_id": 0, "id": 1, "status": 1, "service_id": 1, "inicio": 1, "pessoas": 1},
+    ).to_list(None)
+    if sobra:
+        return len(reservas) - len(sobra) + await apagar_reservas_do_contato(
+            db, tenant_id, contact_id)
+    return len(reservas)
+
+
 async def _reservados(db, tenant_id: str, service_id: str, inicio: str) -> int:
     c = await db.saidas.find_one(_chave(tenant_id, service_id, inicio), {"_id": 0, "reservados": 1})
     return int((c or {}).get("reservados") or 0)
@@ -911,7 +944,12 @@ async def expirar_solicitacoes(db, agora: datetime = None, *, tenant_id: str = N
         try:
             await _transicao(db, v["tenant_id"], v, agenda.STATUS_CANCELADO, {
                 "cancelado_em": _now(), "cancelado_por": "sistema", "expira_em": None,
-                "motivo_cancelamento": "Solicitação não confirmada no prazo"})
+                "motivo_cancelamento": "Solicitação não confirmada no prazo",
+                # Marcado na mesma gravação do cancelamento, e não enviado aqui:
+                # esta função também roda dentro de `reservar`, no meio da
+                # conversa de outro turista. Quem avisa é a varredura do worker
+                # (`agenda_worker._avisar_expiradas`), pelas duas origens.
+                "aviso_expiracao": "pendente"})
             n += 1
         except HTTPException:
             # Alguém mexeu nela no mesmo instante (confirmou ou cancelou): o

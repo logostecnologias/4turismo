@@ -57,6 +57,10 @@ MAX_ANTECEDENCIA_HORAS = 168  # 7 dias
 # que é exatamente o padrão de rajada que derruba número de WhatsApp.
 MAX_POR_PASSADA = 200
 
+# Depois de quantas horas do início do passeio o aviso de solicitação vencida
+# deixa de fazer sentido e é dispensado.
+AVISO_EXPIRACAO_ATRASO_MAX = 12
+
 _task = None
 
 
@@ -103,6 +107,15 @@ MENSAGENS = {
         "foi cancelada: {motivo}.\n\n"
         "Sua reserva foi cancelada. Responda aqui que a nossa equipe ajuda você a "
         "escolher outra data."
+    ),
+    # A solicitação venceu sem a agência confirmar. Não diz "cancelada pela
+    # agência" nem promete vaga: diz o que aconteceu e abre a porta. Sem este
+    # aviso o turista acha que o passeio está de pé e aparece no embarque.
+    "expiracao": (
+        "Olá, {contato}. Não conseguimos confirmar a tempo o seu pedido de "
+        "*{servico}* para {data_completa}, e ele foi encerrado.\n\n"
+        "Se ainda quiser ir, responda aqui que a nossa equipe confere as vagas "
+        "com você."
     ),
 }
 
@@ -397,12 +410,51 @@ async def _pendentes(db, agora: datetime) -> list:
     return await cursor.to_list(MAX_POR_PASSADA)
 
 
+async def _avisar_expiradas(db, agora: datetime):
+    """Avisa o turista de cada solicitação que venceu sem a agência confirmar.
+
+    A expiração acontece em dois lugares (a varredura e a hora de reservar numa
+    saída que parece cheia) e só marca `aviso_expiracao: pendente`; o envio é
+    sempre daqui, para o segundo caso não mandar mensagem a um turista no meio
+    da conversa de outro.
+
+    Mesma regra do lembrete: a marca sai de "pendente" **antes** do envio,
+    condicionada a ainda estar pendente. Perder um aviso é melhor que repeti-lo
+    a cada cinco minutos com a conexão instável.
+    """
+    vencidas = await db.appointments.find(
+        {"aviso_expiracao": "pendente"}, {"_id": 0},
+    ).sort([("_id", 1)]).to_list(MAX_POR_PASSADA)
+    configs = {}
+    enviados = 0
+    for a in vencidas:
+        tenant_id = a["tenant_id"]
+        if tenant_id not in configs:
+            configs[tenant_id] = await agenda.configuracao(db, tenant_id)
+        config = configs[tenant_id]
+        # Passeio que já aconteceu há mais de meio dia (servidor parado, por
+        # exemplo): o aviso chegaria como notícia velha.
+        tarde = a["inicio"] < agenda._iso(agora - timedelta(hours=AVISO_EXPIRACAO_ATRASO_MAX))
+        destino = "dispensado" if (tarde or not config.get("avisar_expiracao", True)) \
+            else "enviado"
+        res = await db.appointments.update_one(
+            {"id": a["id"], "tenant_id": tenant_id, "aviso_expiracao": "pendente"},
+            {"$set": {"aviso_expiracao": destino, "updated_at": _now()}})
+        if destino != "enviado" or not res.modified_count:
+            continue
+        if await avisar(db, tenant_id, a, "expiracao", config):
+            enviados += 1
+    if enviados:
+        logger.info("Avisos de solicitação vencida enviados: %d", enviados)
+
+
 async def _varrer():
     db = get_db()
     agora = agenda._agora()
     # Antes dos lembretes: uma solicitação vencida devolve lugar, e devolver
     # cedo é o que deixa a vaga aparecer para o próximo turista.
     await saidas.expirar_solicitacoes(db, agora)
+    await _avisar_expiradas(db, agora)
     pendentes = await _pendentes(db, agora)
     if not pendentes:
         return

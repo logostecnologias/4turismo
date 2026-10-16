@@ -7,6 +7,7 @@ load_dotenv(ROOT_DIR / ".env")
 import os
 import logging
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from pymongo.errors import OperationFailure
 from starlette.middleware.cors import CORSMiddleware
 
@@ -40,7 +41,11 @@ import health_monitor
 import media_retention
 import migrations
 import whatsapp_client
+import observabilidade
 
+# Antes de criar o app: é na criação que a integração do Sentry com o FastAPI
+# se pendura.
+observabilidade.iniciar_sentry()
 
 app = FastAPI(title="4turismo API")
 
@@ -163,7 +168,10 @@ app.include_router(site_publico_router)
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "service": "4turismo"}
+    # 503 quando o banco não responde ou um worker morreu: é o que o monitor
+    # de disponibilidade externo enxerga (ver `observabilidade.estado`).
+    saudavel, corpo = await observabilidade.estado(get_db())
+    return JSONResponse(corpo, status_code=200 if saudavel else 503)
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -359,6 +367,11 @@ INDEXES: list[tuple[str, list[tuple[str, int]], dict]] = [
     # A varredura de solicitações vencidas, de todas as empresas de uma vez
     # como a de lembretes: por isso começa por `status`, não por `tenant_id`.
     ("appointments", [("status", 1), ("expira_em", 1)], {}),
+    # Os avisos de solicitação vencida ainda por enviar, de todas as empresas.
+    # Parcial: a marca só fica "pendente" por alguns minutos, e o índice
+    # guarda só essas, não a coleção inteira.
+    ("appointments", [("aviso_expiracao", 1)],
+     {"partialFilterExpression": {"aviso_expiracao": "pendente"}}),
     # O contador de lugares de cada saída. **Único**: é ele que faz duas
     # conversas criando o contador da mesma saída ao mesmo tempo terminarem com
     # um contador só (a segunda leva DuplicateKeyError e segue para o `$inc`).

@@ -25,6 +25,13 @@ const MINUTOS_ANTES_MAX = 240;
 
 const TEMPLATE_VAZIO = { nome: "", idioma: "pt_BR", variaveis: [] };
 
+const NOTAS_MENSAGEM = {
+  mensagem_cancelamento_saida:
+    "Vai para cada grupo da saída quando a agência cancela a saída inteira com “Avisar os turistas” marcado.",
+  mensagem_expiracao:
+    "Vai quando o prazo para confirmar acaba e a vaga volta para a venda, se o aviso estiver ligado em “Como as reservas são aceitas”.",
+};
+
 function corpoTemplate(t) {
   return {
     nome: (t?.nome || "").trim(),
@@ -56,6 +63,10 @@ export default function Configuracao({ config, onSalvo }) {
     template_lembrete: config.template_lembrete || TEMPLATE_VAZIO,
     mensagem_cancelamento_saida: config.mensagem_cancelamento_saida || "",
     template_cancelamento_saida: config.template_cancelamento_saida || TEMPLATE_VAZIO,
+    mensagem_expiracao: config.mensagem_expiracao || "",
+    template_expiracao: config.template_expiracao || TEMPLATE_VAZIO,
+    // Ausente = ligado: é o padrão do servidor.
+    avisar_expiracao: config.avisar_expiracao !== false,
     pontos_embarque: (config.pontos_embarque || []).map((p) => ({
       ...p, minutos_antes: p.minutos_antes ?? MINUTOS_ANTES_PADRAO, ativo: p.ativo !== false,
     })),
@@ -94,6 +105,9 @@ export default function Configuracao({ config, onSalvo }) {
         template_lembrete: corpoTemplate(form.template_lembrete),
         mensagem_cancelamento_saida: form.mensagem_cancelamento_saida || "",
         template_cancelamento_saida: corpoTemplate(form.template_cancelamento_saida),
+        avisar_expiracao: !!form.avisar_expiracao,
+        mensagem_expiracao: form.mensagem_expiracao || "",
+        template_expiracao: corpoTemplate(form.template_expiracao),
         // A ordem da lista é a ordem em que o turista vê os pontos no WhatsApp.
         // Item sem `id` é novo, e o servidor gera o id.
         pontos_embarque: (form.pontos_embarque || []).map((p) => ({
@@ -140,6 +154,14 @@ export default function Configuracao({ config, onSalvo }) {
               onChange={(m) => set({ prazo_solicitacao_horas: emHoras(m) })} />
           </Campo>
         </div>
+        {Number(form.prazo_solicitacao_horas) > 0 && (
+          <label className="flex items-center gap-2 text-sm cursor-pointer mt-4">
+            <input type="checkbox" checked={!!form.avisar_expiracao}
+              data-testid="config-avisar-expiracao"
+              onChange={(e) => set({ avisar_expiracao: e.target.checked })} />
+            <span>Avisar o turista pelo WhatsApp quando a solicitação vencer sem confirmação</span>
+          </label>
+        )}
       </Bloco>
 
       <Bloco titulo="Lembrete automático"
@@ -245,11 +267,10 @@ export default function Configuracao({ config, onSalvo }) {
             ["mensagem_lembrete", "Lembrete, antes da saída"],
             ["mensagem_cancelamento", "Aviso de cancelamento"],
             ["mensagem_cancelamento_saida", "Saída cancelada (chuva, maré, lagoa seca)"],
+            ["mensagem_expiracao", "Solicitação vencida sem confirmação"],
           ].map(([campo, rotulo]) => (
             <Campo key={campo} label={rotulo}
-              nota={campo === "mensagem_cancelamento_saida"
-                ? "Vai para cada grupo da saída quando a agência cancela a saída inteira com “Avisar os turistas” marcado."
-                : null}>
+              nota={NOTAS_MENSAGEM[campo] || null}>
               <textarea rows={4} className="zz-input" value={form[campo] || ""}
                 data-testid={`config-${campo}`}
                 placeholder={config.mensagens_padrao?.[campo.replace("mensagem_", "")] || ""}
@@ -275,6 +296,30 @@ export default function Configuracao({ config, onSalvo }) {
                 onChange={(e) => set({
                   template_cancelamento_saida: {
                     ...form.template_cancelamento_saida,
+                    variaveis: e.target.value.split("\n"),
+                  },
+                })} />
+            </Campo>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+            <Campo label="Modelo aprovado da solicitação vencida"
+              nota="Nome exato do modelo na sua conta da Meta. Sem ele, o aviso só sai para quem escreveu nas últimas 24h, e o motivo fica no histórico da conversa.">
+              <input className="zz-input" data-testid="config-template-expiracao"
+                placeholder="ex: solicitacao_vencida"
+                value={form.template_expiracao?.nome || ""}
+                onChange={(e) => set({
+                  template_expiracao: { ...form.template_expiracao, nome: e.target.value },
+                })} />
+            </Campo>
+            <Campo label="Variáveis do modelo, na ordem"
+              nota="Uma por linha, na ordem de {{1}}, {{2}}...">
+              <textarea rows={3} className="zz-input tabular-nums text-xs"
+                data-testid="config-template-expiracao-variaveis"
+                placeholder={"{contato}\n{servico}\n{data_completa}"}
+                value={(form.template_expiracao?.variaveis || []).join("\n")}
+                onChange={(e) => set({
+                  template_expiracao: {
+                    ...form.template_expiracao,
                     variaveis: e.target.value.split("\n"),
                   },
                 })} />

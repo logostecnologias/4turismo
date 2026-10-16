@@ -21,12 +21,13 @@
   <div class="card">
 
     <h1>Política de Privacidade</h1>
-    <p class="sub">Última atualização: 2 de setembro de 2026</p>
+    <p class="sub">Última atualização: 16 de outubro de 2026</p>
 
     <p>Esta política explica como a plataforma <strong>4turismo</strong>, operada por
     <strong>66.687.068 MARKUS DANYLLO DINIZ DA SILVA</strong> — CNPJ 66.687.068/0001-07 —, trata dados pessoais.
-    A 4turismo é um serviço de atendimento e automação de conversas no WhatsApp, usado por
-    empresas para falar com os próprios clientes.</p>
+    A 4turismo é uma plataforma usada por agências de turismo e operadores de passeios
+    para atender os próprios clientes pelo WhatsApp, controlar vagas e reservas e publicar
+    o site da agência.</p>
 
     <h2>1. Dois papéis diferentes, e a distinção importa</h2>
     <p>A 4turismo trata dados em duas posições distintas, nos termos da Lei Geral de
@@ -64,16 +65,30 @@
       e adesivo — trocado com o número de WhatsApp da empresa;</li>
       <li>Metadados de entrega das mensagens (enviada, entregue, lida, falha e o motivo
       da falha);</li>
-      <li>Registros comerciais criados pela empresa: negócios, tarefas, agendamentos e
-      histórico de campanhas recebidas.</li>
+      <li>Dados de reserva: passeio, data e horário, quantidade de adultos e de crianças
+      do grupo (só a quantidade, sem identificar as crianças), valor combinado, hotel ou
+      ponto de embarque e horário de busca;</li>
+      <li>Registros comerciais criados pela empresa: orçamentos, tarefas e anotações.</li>
     </ul>
 
-    <h3>2.3. De onde vêm</h3>
+    <h3>2.3. De quem visita o site de uma agência</h3>
+    <ul>
+      <li>Quando o visitante toca em "Quero esse passeio", registramos um código, o
+      passeio, a data, a quantidade de pessoas, o idioma, a página e o endereço de
+      origem da visita, para a agência saber que a conversa veio do site. Esse registro
+      não contém nome nem telefone: o visitante só é identificado se depois mandar a
+      mensagem pelo WhatsApp;</li>
+      <li>O endereço IP é usado na memória do servidor, por poucos minutos, para conter
+      abuso automatizado, e não é gravado junto com o clique;</li>
+      <li>O site das agências não usa cookies nem ferramentas de analytics.</li>
+    </ul>
+
+    <h3>2.4. De onde vêm</h3>
     <ul>
       <li><strong>Do próprio contato</strong>, quando ele escreve para o número de
-      WhatsApp da empresa — a mensagem chega pela WhatsApp Cloud API da Meta;</li>
-      <li><strong>Da empresa contratante</strong>, por cadastro manual ou importação de
-      planilha.</li>
+      WhatsApp da empresa ou usa o site da agência;</li>
+      <li><strong>Da empresa contratante</strong>, por cadastro manual, importação de
+      planilha ou registro de reserva.</li>
     </ul>
     <p>Não compramos listas de contatos, não coletamos dados de fontes públicas e não
     rastreamos navegação em sites de terceiros.</p>
@@ -97,17 +112,26 @@
     <table>
       <tr><th>Quem</th><th>Para quê</th><th>O que recebe</th></tr>
       <tr>
-        <td>Meta Platforms<br>(WhatsApp Cloud API)</td>
-        <td>Entregar e receber as mensagens de WhatsApp</td>
+        <td>Meta Platforms<br>(WhatsApp)</td>
+        <td>Entregar e receber as mensagens de WhatsApp, pela Cloud API oficial ou pelo
+        canal não oficial que a empresa contratante escolher</td>
         <td>Número do contato e conteúdo da mensagem. É a própria rede pela qual a
         conversa acontece.</td>
       </tr>
       <tr>
-        <td>Anthropic e/ou OpenAI</td>
+        <td>Provedor de inteligência artificial escolhido pela empresa contratante
+        (Anthropic, OpenAI, Google, Groq, OpenRouter, DeepSeek, Mistral, xAI ou outro
+        compatível)</td>
         <td>Somente quando a empresa contratante ativa um agente de inteligência
-        artificial</td>
-        <td>O trecho recente da conversa necessário para gerar a resposta. Sem o recurso
-        ativado, nada é enviado a eles.</td>
+        artificial ou a tradução do site</td>
+        <td>O trecho recente da conversa necessário para gerar a resposta, ou o texto do
+        site a traduzir. Sem o recurso ativado, nada é enviado.</td>
+      </tr>
+      <tr>
+        <td>Sentry</td>
+        <td>Registro de erros técnicos da plataforma</td>
+        <td>Descrição técnica do erro. Configurado para não receber o conteúdo das
+        mensagens, cookies nem endereço IP.</td>
       </tr>
       <tr>
         <td>Oracle Cloud Infrastructure</td>
@@ -125,8 +149,8 @@
     outra: o isolamento entre empresas é aplicado em toda consulta ao banco de dados.</p>
 
     <h2>5. Transferência internacional</h2>
-    <p>Meta, Anthropic e OpenAI processam dados fora do Brasil, inclusive nos Estados
-    Unidos. A transferência tem base no art. 33 da LGPD, por ser necessária à execução do
+    <p>A Meta, os provedores de inteligência artificial e o Sentry processam dados fora do
+    Brasil, inclusive nos Estados Unidos. A transferência tem base no art. 33 da LGPD, por ser necessária à execução do
     contrato solicitado pelo titular ou pelo controlador, e ocorre sob os compromissos
     contratuais de proteção de dados desses fornecedores.</p>
 
@@ -137,7 +161,9 @@
       <li>Tokens de acesso ao WhatsApp e chaves de API de inteligência artificial são
       <strong>cifrados em repouso</strong>, com a chave-mestra fora do banco de dados;
       nunca são exibidos de volta na tela, apenas mascarados;</li>
-      <li>O banco de dados não é exposto à internet: o acesso trafega por túnel cifrado;</li>
+      <li>O banco de dados não é exposto à internet;</li>
+      <li>Fotos publicadas no site da agência são servidas em versões regravadas, sem
+      os metadados do arquivo original (como a localização em que a foto foi tirada);</li>
       <li>Isolamento por empresa aplicado em toda consulta, e visibilidade do atendente
       restrita às conexões de WhatsApp liberadas explicitamente para ele;</li>
       <li>Acesso de suporte a uma empresa deixa registro de auditoria.</li>
@@ -153,7 +179,9 @@
       obrigação legal;</li>
       <li><strong>Arquivos de mídia</strong> (imagem, áudio, vídeo, documento): apagados
       automaticamente após a janela de retenção do plano — <strong>90 dias</strong> por
-      padrão. O registro da mensagem permanece, indicando que o anexo expirou;</li>
+      padrão. O registro da mensagem permanece, indicando que o anexo expirou. Imagens
+      publicadas no site da agência ficam enquanto estiverem em uso;</li>
+      <li><strong>Registros de clique no site</strong>: 90 dias;</li>
       <li><strong>Registros técnicos de deduplicação de mensagem</strong>: 7 dias;</li>
       <li>Encerrada a conta, os dados da empresa são excluídos da plataforma.</li>
     </ul>
@@ -164,9 +192,9 @@
     disponível; veja <a href="/exclusao-de-dados.html">Exclusão de dados</a>.</p>
 
     <h2>8. Cookies</h2>
-    <p>A plataforma usa <strong>apenas cookies necessários</strong> ao funcionamento. Não
-    há cookie de publicidade, de rastreamento entre sites nem ferramenta de analytics de
-    terceiros.</p>
+    <p>O painel da plataforma usa <strong>apenas cookies necessários</strong> ao
+    funcionamento. Não há cookie de publicidade, de rastreamento entre sites nem
+    ferramenta de analytics de terceiros. Os sites das agências não usam cookies.</p>
     <table>
       <tr><th>Cookie</th><th>Para quê</th><th>Duração</th></tr>
       <tr><td><code>access_token</code></td><td>Manter a sessão autenticada</td><td>12 horas</td></tr>
@@ -179,7 +207,7 @@
     acesso aos dados, correção, anonimização, bloqueio ou eliminação, portabilidade,
     informação sobre compartilhamento e revogação do consentimento.</p>
     <p>Para exercê-los, escreva para
-    <a href="mailto:contato@atendimentoautomatizado.com.br">contato@atendimentoautomatizado.com.br</a>.
+    <a href="mailto:contato@logostecnologias.com">contato@logostecnologias.com</a>.
     Respondemos em até <strong>15 dias</strong>. Podemos pedir informação adicional para
     confirmar a sua identidade — atender um pedido sem confirmar quem pede seria entregar
     dados de outra pessoa.</p>
@@ -187,13 +215,15 @@
     operadores: encaminhamos o pedido ao controlador e o apoiamos no atendimento.</p>
 
     <h3>Parar de receber mensagens</h3>
-    <p>Para sair da lista de disparos de uma empresa, responda no próprio WhatsApp com
+    <p>Para deixar de receber mensagens em massa de uma empresa, responda no próprio WhatsApp com
     <strong>SAIR</strong>, <strong>PARAR</strong> ou <strong>DESCADASTRAR</strong>. O
     descadastramento é imediato e não interrompe um atendimento em andamento.</p>
 
     <h2>10. Menores de idade</h2>
     <p>A plataforma é destinada ao uso profissional por maiores de 18 anos e não coleta
-    dados de crianças e adolescentes de forma intencional.</p>
+    dados de crianças e adolescentes de forma intencional. Numa reserva, fica registrada
+    apenas a quantidade de crianças do grupo, sem nome nem outro dado que as
+    identifique.</p>
 
     <h2>11. Alterações desta política</h2>
     <p>Mudanças relevantes são publicadas nesta página, com a data de atualização no topo.
@@ -203,7 +233,7 @@
     <h2>12. Contato</h2>
     <p>66.687.068 MARKUS DANYLLO DINIZ DA SILVA — CNPJ 66.687.068/0001-07<br>
     Encarregado pelo tratamento de dados pessoais (DPO):
-    <a href="mailto:contato@atendimentoautomatizado.com.br">contato@atendimentoautomatizado.com.br</a></p>
+    <a href="mailto:contato@logostecnologias.com">contato@logostecnologias.com</a></p>
 
     <footer>
       <a href="/">Início</a>

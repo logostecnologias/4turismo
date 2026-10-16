@@ -32,3 +32,5 @@ openai>=3.0.0
 # estoque em Excel (.xlsx) e documento em PDF. O .docx é lido sem dependência.
 openpyxl>=3.1.0
 pypdf>=4.0.0
+# Erros no Sentry, só com SENTRY_DSN configurado (ver observabilidade.py).
+sentry-sdk>=2.0.0

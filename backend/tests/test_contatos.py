@@ -119,6 +119,19 @@ async def semear():
     await DB.activities.insert_one({
         "id": "a1", "tenant_id": TENANT, "contact_id": "c1", "titulo": "Ligar",
         "vence_em": "2026-08-20T00:00:00+00:00", "concluida_em": None})
+    # Reservas: uma Confirmada da Maria (3 lugares), uma cancelada dela, e uma de
+    # outro turista na mesma saída (2 lugares). O contador soma as que ocupam.
+    saida = {"tenant_id": TENANT, "service_id": "sv1", "inicio": "2026-11-20T11:00:00+00:00"}
+    await DB.saidas.insert_one({**saida, "id": "sd1", "reservados": 5})
+    for rid, contato, status, pessoas in (("r1", "c1", "confirmado", 3),
+                                          ("r2", "c1", "cancelado", 2),
+                                          ("r3", "c9", "confirmado", 2)):
+        await DB.appointments.insert_one({
+            "id": rid, **saida, "contact_id": contato,
+            "contact_nome": "Maria Silva" if contato == "c1" else "Outro",
+            "contact_numero": "5511900000001" if contato == "c1" else "5511900000009",
+            "embarque_obs": "quarto 12, irmã 98888-0000", "status": status,
+            "pessoas": pessoas, "adultos": pessoas, "criancas": 0, "preco": 300})
 
 
 async def etapa_anonimizar():
@@ -175,6 +188,16 @@ async def etapa_anonimizar():
     check("relatorio conta o negocio preservado", r["negocios_preservados"] == 1, r)
     check("atividade preservada", await DB.activities.count_documents({"contact_id": "c1"}) == 1)
 
+    r1 = await DB.appointments.find_one({"id": "r1"})
+    check("reserva preservada, com status e valor", r1["status"] == "confirmado"
+          and r1["preco"] == 300, r1)
+    check("nome e numero saem da reserva", r1["contact_nome"] == contatos.NOME_ANONIMO
+          and r1["contact_numero"] is None, r1)
+    check("observacao de embarque sai da reserva", r1["embarque_obs"] is None, r1)
+    check("reserva de outro turista intacta",
+          (await DB.appointments.find_one({"id": "r3"}))["contact_nome"] == "Outro")
+    check("relatorio conta as reservas", r["reservas_anonimizadas"] == 2, r)
+
 
 async def etapa_apagar():
     print("\n[2] Apagar: leva tudo")
@@ -194,6 +217,14 @@ async def etapa_apagar():
     check("arquivo apagado do disco", not arquivo.exists())
     check("relatorio diz o que levou",
           r["conversas_apagadas"] == 1 and r["negocios_apagados"] == 1, r)
+    check("reservas do contato apagadas",
+          await DB.appointments.count_documents({"contact_id": "c1"}) == 0)
+    check("reserva de outro turista fica",
+          await DB.appointments.count_documents({"id": "r3"}) == 1)
+    saida = await DB.saidas.find_one({"id": "sd1"})
+    check("so os lugares da reserva que ocupava voltam (contador = 2)",
+          saida["reservados"] == 2, saida)
+    check("relatorio conta as reservas", r["reservas_apagadas"] == 2, r)
 
 
 async def etapa_recusas():
@@ -236,7 +267,11 @@ async def etapa_mesclar():
         "id": "n2", "tenant_id": TENANT, "contact_id": "c2", "texto": "prefere whatsapp",
         "autor_id": "u-admin", "created_at": "2026-08-07T00:00:00+00:00"})
 
+    await DB.appointments.update_one({"id": "r3"}, {"$set": {"contact_id": "c2"}})
     r = await rc.merge_contacts("c1", rc.MesclarIn(secundario_id="c2"), ADMIN)
+    check("reserva movida para a ficha que fica",
+          (await DB.appointments.find_one({"id": "r3"}))["contact_id"] == "c1")
+    check("relatorio conta a reserva movida", r["reservas"] == 1, r)
 
     check("secundario apagado", await DB.contacts.count_documents({"id": "c2"}) == 0)
     check("conversa movida",

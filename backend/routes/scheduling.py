@@ -83,15 +83,18 @@ class ConfigIn(BaseModel):
     lembrete_ativo: bool | None = None
     lembrete_horas: float | None = Field(default=None, ge=1, le=168)
     prazo_solicitacao_horas: float | None = Field(default=None, ge=0, le=720)
+    avisar_expiracao: bool | None = None
     bloqueios: list[BloqueioIn] | None = None
     mensagem_confirmacao: str | None = None
     mensagem_lembrete: str | None = None
     mensagem_cancelamento: str | None = None
     mensagem_cancelamento_saida: str | None = None
+    mensagem_expiracao: str | None = None
     template_confirmacao: TemplateAvisoIn | None = None
     template_lembrete: TemplateAvisoIn | None = None
     template_cancelamento: TemplateAvisoIn | None = None
     template_cancelamento_saida: TemplateAvisoIn | None = None
+    template_expiracao: TemplateAvisoIn | None = None
     pontos_embarque: list[PontoEmbarqueIn] | None = None
 
 

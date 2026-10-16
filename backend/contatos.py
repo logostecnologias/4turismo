@@ -21,7 +21,11 @@ mesmo padrão do `media_retention` (o documento em `media_files` fica com
 duplicado que não vale mesclar. Aí vai tudo, e a resposta diz o que levou junto.
 
 **Mesclar move, não copia.** Duas fichas do mesmo cliente (dois números) viram
-uma: conversas, negócios, atividades e notas passam para a que fica.
+uma: conversas, negócios, atividades, notas e reservas passam para a que fica.
+
+**Reserva é coleção que se esquece aqui**, porque nasceu depois deste módulo
+(fase 1) e guarda nome e número do turista por conta própria. Coleção nova com
+`contact_id` precisa entrar nas três operações.
 """
 import logging
 from datetime import datetime, timezone
@@ -139,6 +143,16 @@ async def anonimizar(db, tenant_id: str, contact: dict) -> dict:
         {"tenant_id": tenant_id, "contact_id": contact_id}
     )
 
+    # A reserva guarda nome e número do turista (é o que a lista de embarque
+    # imprime), além da observação de embarque, onde cabe quarto de hotel e
+    # telefone de parente. Ela fica, como o negócio: é ocupação e receita de um
+    # passeio que aconteceu, mas sem identificar ninguém.
+    reservas = await db.appointments.update_many(
+        {"tenant_id": tenant_id, "contact_id": contact_id},
+        {"$set": {"contact_nome": NOME_ANONIMO, "contact_numero": None,
+                  "embarque_obs": None, "anonimizado_em": agora}},
+    )
+
     campos = {
         "nome": NOME_ANONIMO,
         # Marcador em vez de vazio: mantém a ficha identificável como "esta era
@@ -160,6 +174,7 @@ async def anonimizar(db, tenant_id: str, contact: dict) -> dict:
         "mensagens_redigidas": mensagens,
         "midias_apagadas": midias,
         "conversas_preservadas": len(session_ids),
+        "reservas_anonimizadas": reservas.modified_count,
         "negocios_preservados": await db.deals.count_documents(
             {"tenant_id": tenant_id, "contact_id": contact_id}
         ),
@@ -205,11 +220,16 @@ async def apagar(db, tenant_id: str, contact: dict) -> dict:
     atividades = await db.activities.delete_many(
         {"tenant_id": tenant_id, "contact_id": contact_id}
     )
+    # Tardio: `saidas` puxa a agenda e o resto do domínio de reservas, que este
+    # módulo não precisa para anonimizar nem mesclar.
+    import saidas
+    reservas = await saidas.apagar_reservas_do_contato(db, tenant_id, contact_id)
     await db.contacts.delete_one({"id": contact_id, "tenant_id": tenant_id})
 
     return {
         "modo": "apagar",
         "conversas_apagadas": len(session_ids),
+        "reservas_apagadas": reservas,
         "negocios_apagados": len(negocios),
         "notas_apagadas": notas.deleted_count,
         "atividades_apagadas": atividades.deleted_count,
@@ -276,7 +296,12 @@ async def mesclar(db, tenant_id: str, principal: dict, secundario: dict) -> dict
         raise ValueError("Não é possível mesclar um cliente com ele mesmo")
 
     movidos = {}
-    for colecao in ("conversation_sessions", "deals", "activities", "contact_notes"):
+    # As reservas vão junto: sem elas, a ficha que fica não mostraria os passeios
+    # do cliente, e a que sai (apagada logo abaixo) deixaria reservas apontando
+    # para ninguém. O nome e o número gravados na reserva continuam os de quando
+    # ela foi feita, que é o número em que o turista espera a mensagem.
+    for colecao in ("conversation_sessions", "deals", "activities", "contact_notes",
+                    "appointments"):
         r = await db[colecao].update_many(
             {"tenant_id": tenant_id, "contact_id": origem},
             {"$set": {"contact_id": destino}},
@@ -315,5 +340,6 @@ async def mesclar(db, tenant_id: str, principal: dict, secundario: dict) -> dict
         "negocios": movidos["deals"],
         "atividades": movidos["activities"],
         "notas": movidos["contact_notes"],
+        "reservas": movidos["appointments"],
         "campos_herdados": sorted(k for k in campos if k != "updated_at"),
     }
