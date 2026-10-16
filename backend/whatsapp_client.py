@@ -542,27 +542,29 @@ async def digitando(cred: Credencial, numero: str, audio: bool = False) -> None:
         await _wuz().presence(cred.token, numero, audio=audio)
 
 
-async def marcar_lida(cred: Credencial, wamid: str, digitando: bool = False) -> None:
+async def marcar_lida(cred: Credencial, wamid: str, digitando: bool = False,
+                      chat: str | None = None) -> None:
     """Marca a mensagem como lida e, opcionalmente, mostra "digitando...".
 
     Não é enfeite: sem isto o contato vê a mensagem dele sem os dois tiques
     azuis mesmo depois de o bot ter respondido, o que na conversa parece
     empresa que não leu. O indicador cai sozinho em 25 segundos ou quando a
-    resposta sai.
+    resposta sai. No canal não oficial é também proteção do número: robô que
+    responde sem nunca ler é assinatura de automação.
+
+    `chat` é o JID do chat como chegou no webhook da WuzAPI (pode ser `@lid`);
+    a Cloud API não precisa dele.
 
     Falha aqui nunca derruba o atendimento: quem chama engole o erro.
     """
     if cred.canal == CANAL_WUZAPI:
-        # A WuzAPI tem um endpoint de marcar lida, mas o cliente nunca o
-        # implementou (na arquitetura antiga isso nem existia) e o formato dele
-        # muda entre versões e forks — a mesma razão que obrigou a redundância
-        # de grafia em send_buttons/send_list. Chamar às cegas daria erro em
-        # **toda** mensagem recebida, e o custo de não chamar é o contato não
-        # ver os dois tiques.
-        #
-        # Sai como não-operação de propósito, e não como exceção: quem chama
-        # engole erro aqui, então levantar só encheria o log sem mudar nada.
-        logger.debug("marcar_lida ignorada: canal wuzapi não expõe leitura")
+        # Formato conferido no handler `MarkRead` da versão fixada em
+        # infra/compose.yaml. Antes era não-operação porque o formato muda
+        # entre versões; com a versão presa, deixou de ser chute.
+        if not chat:
+            logger.debug("marcar_lida ignorada: sem o JID do chat")
+            return
+        await _wuz().marcar_lida(cred.token, wamid, chat)
         return
     corpo: dict = {"messaging_product": "whatsapp", "status": "read", "message_id": wamid}
     if digitando:

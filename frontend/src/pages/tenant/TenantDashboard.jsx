@@ -328,7 +328,7 @@ function Pendencias({ dados, recarregar }) {
 
 function Alertas({ alertas }) {
   if (!alertas || !alertas.length) return null;
-  const destino = { whatsapp: "/app/whatsapp", assistente: "/app/ai-agents" };
+  const destino = { whatsapp: "/app/whatsapp", assistente: "/app/ai-agents", aviso_saida: "/app/agenda" };
   return (
     <div className="space-y-2 mb-6" data-testid="hoje-alertas">
       {alertas.map((a, i) => (

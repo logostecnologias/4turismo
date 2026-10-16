@@ -397,8 +397,11 @@ async def _processar_evento(tenant_id: str, connection_id: str, payload: dict,
         # Em tarefa de fundo, como no receptor da Cloud API: a WuzAPI reentrega
         # o que não recebe 200 rápido, e processar o fluxo inteiro dentro da
         # requisição faria uma conversa lenta virar evento duplicado.
+        # O `Chat` vai cru, para marcar como lida: o recibo de leitura é do
+        # chat (que pode ser `@lid`), não do número que `_numero_do_evento` tira.
         bg.add_task(handle_incoming_message, tenant_id, numero, texto, message_id,
-                    connection_id, info.get("PushName") or None, midia, escolha)
+                    connection_id, info.get("PushName") or None, midia, escolha,
+                    chat_jid=info.get("Chat") or None)
         return {"ok": True, "enfileirado": True}
 
     return {"ok": True, "ignorado": tipo}

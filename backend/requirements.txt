@@ -32,5 +32,10 @@ openai>=3.0.0
 # estoque em Excel (.xlsx) e documento em PDF. O .docx é lido sem dependência.
 openpyxl>=3.1.0
 pypdf>=4.0.0
+# Site público: páginas renderizadas no servidor (site_templates/) e versões
+# leves das imagens (imagens_site.py). Faltavam aqui e só funcionavam na
+# máquina de desenvolvimento por já estarem instaladas.
+Jinja2>=3.1.0
+Pillow>=10.0.0
 # Erros no Sentry, só com SENTRY_DSN configurado (ver observabilidade.py).
 sentry-sdk>=2.0.0

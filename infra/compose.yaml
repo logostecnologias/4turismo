@@ -1,0 +1,127 @@
+# Produção do 4turismo: um servidor, tudo em containers.
+#
+#   caddy      porta de entrada (80/443): painel, /api e os sites das agências,
+#              com TLS automático. Único serviço exposto na internet.
+#   backend    FastAPI, um worker (ver backend/Dockerfile).
+#   mongo      banco do 4turismo, com senha, sem porta publicada.
+#   wuzapi     a ponte do WhatsApp (canal não oficial), própria do 4turismo.
+#   wuzapi-db  Postgres da ponte (sessões do WhatsApp e instâncias).
+#
+# Uso (dentro de infra/, com o .env preenchido a partir do .env.example):
+#   docker compose up -d --build       subir / atualizar depois de um git pull
+#   docker compose ps                  estado e saúde
+#   docker compose logs -f backend     log do backend
+#
+# Passo a passo completo em infra/DEPLOY.md.
+
+name: turismo
+
+services:
+  caddy:
+    build: ../frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      APP_DOMINIO: ${APP_DOMINIO:?defina APP_DOMINIO no .env}
+      SITE_DOMINIO: ${SITE_DOMINIO:?defina SITE_DOMINIO no .env}
+      ACME_EMAIL: ${ACME_EMAIL:?defina ACME_EMAIL no .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  backend:
+    build: ../backend
+    restart: unless-stopped
+    env_file: .env
+    # O que é amarrado à topologia deste compose fica aqui, não no .env: errar
+    # um destes é o backend falando com o lugar errado sem erro nenhum.
+    environment:
+      MONGO_URL: mongodb://turismo:${MONGO_SENHA:?defina MONGO_SENHA no .env}@mongo:27017/?authSource=admin
+      DB_NAME: turismo
+      MEDIA_DIR: /data/media
+      WUZAPI_URL: http://wuzapi:8080
+      # É para onde a ponte manda as mensagens recebidas (webhook). Pela rede
+      # interna, não pela internet: a mensagem do turista não sai do servidor.
+      PUBLIC_BASE_URL: http://backend:8000
+      COOKIE_SECURE: "true"
+      CORS_ORIGINS: https://${APP_DOMINIO}
+      APP_HOSTS: ${APP_DOMINIO},backend
+      SITE_DOMINIO: ${SITE_DOMINIO}
+      SITE_ESQUEMA: https
+    volumes:
+      - media:/data/media
+    depends_on:
+      mongo:
+        condition: service_healthy
+      wuzapi:
+        condition: service_started
+
+  mongo:
+    image: mongo:7.0.14
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: turismo
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_SENHA}
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  wuzapi:
+    # Não há imagem oficial publicada: compila do código-fonte, preso a um
+    # commit. Trocar de versão é trocar o hash aqui, de propósito e testando,
+    # porque a forma dos campos muda entre versões (ver wuzapi_client.py).
+    build:
+      context: https://github.com/asternic/wuzapi.git#a33e10fa5ff53175d937858f5d293d90c9d7cfdc
+    restart: unless-stopped
+    environment:
+      WUZAPI_ADMIN_TOKEN: ${WUZAPI_ADMIN_TOKEN:?defina WUZAPI_ADMIN_TOKEN no .env}
+      # Cifra as sessões guardadas. Perder esta chave = reconectar todos os
+      # números pelo QR. Vai para o backup junto com o .env.
+      WUZAPI_GLOBAL_ENCRYPTION_KEY: ${WUZAPI_ENCRYPTION_KEY:?defina WUZAPI_ENCRYPTION_KEY no .env}
+      # O padrão da ponte é "form"; o receptor (webhooks_wuzapi.py) lê JSON.
+      # Com "form", nenhuma mensagem recebida entraria.
+      WEBHOOK_FORMAT: json
+      SESSION_DEVICE_NAME: 4turismo
+      TZ: America/Sao_Paulo
+      DB_USER: wuzapi
+      DB_PASSWORD: ${WUZAPI_DB_SENHA:?defina WUZAPI_DB_SENHA no .env}
+      DB_NAME: wuzapi
+      DB_HOST: wuzapi-db
+      DB_PORT: "5432"
+      DB_SSLMODE: "false"
+    depends_on:
+      wuzapi-db:
+        condition: service_healthy
+
+  wuzapi-db:
+    image: postgres:16.4-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: wuzapi
+      POSTGRES_PASSWORD: ${WUZAPI_DB_SENHA}
+      POSTGRES_DB: wuzapi
+    volumes:
+      - wuzapi-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wuzapi -d wuzapi"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  mongo-data:
+  media:
+  wuzapi-db-data:
+  caddy-data:
+  caddy-config:

@@ -11,6 +11,8 @@ atende o telefone precisa ver a agenda de todo mundo para dizer "a Ana tem às
 15h". O recorte por profissional existe como **filtro** na tela, não como
 barreira, e o admin, como pediu o cliente, vê tudo por padrão.
 """
+import asyncio
+import logging
 import re
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -28,6 +30,7 @@ from auth import require_tenant_admin, require_tenant_member
 from db import get_db
 
 router = APIRouter(prefix="/api/agenda", tags=["agenda"])
+logger = logging.getLogger("turismo.agenda")
 
 # Teto de agendamentos devolvidos numa janela. A tela mostra semana ou mês de
 # uma equipe; acima disso é exportação, não visualização, e uma consulta sem
@@ -487,16 +490,43 @@ async def cancelar_saida(body: CancelarSaidaIn, user=Depends(require_tenant_admi
     passeio, config, linha = await _linha_da_saida(db, tenant_id, body.service_id, body.inicio)
     canceladas = await saidas.cancelar_saida(db, tenant_id, passeio["id"], linha["inicio"],
                                              motivo=body.motivo, por=user["id"])
-    avisadas = 0
-    if body.avisar:
-        # Um por um, na ordem de criação. `avisar` nunca levanta: um grupo sem
-        # WhatsApp não pode deixar os seguintes sem aviso.
-        for r in canceladas:
-            if await agenda_worker.avisar(db, tenant_id, r, "cancelamento_saida", config):
-                avisadas += 1
-    return {"canceladas": len(canceladas), "avisadas": avisadas,
-            "sem_aviso": len(canceladas) - avisadas,
+    if body.avisar and canceladas:
+        # Em segundo plano: no canal não oficial os avisos saem espaçados
+        # (`ritmo_envio`), e 40 grupos levam uns dez minutos. Esperar aqui
+        # deixaria a tela presa e o pedido morreria por tempo esgotado no meio.
+        tarefa = asyncio.create_task(_avisar_grupos(tenant_id, canceladas, config))
+        _AVISOS_EM_ANDAMENTO.add(tarefa)
+        tarefa.add_done_callback(_AVISOS_EM_ANDAMENTO.discard)
+    return {"canceladas": len(canceladas),
+            "avisando": len(canceladas) if body.avisar else 0,
             "saida": (await _linha_da_saida(db, tenant_id, body.service_id, body.inicio))[2]}
+
+
+# Referência às tarefas de aviso em andamento: sem ela, o coletor de lixo pode
+# levar uma tarefa no meio (o asyncio só guarda referência fraca).
+_AVISOS_EM_ANDAMENTO: set = set()
+
+
+async def _avisar_grupos(tenant_id: str, canceladas: list, config: dict) -> int:
+    """Avisa cada grupo da saída cancelada. `avisar` nunca levanta: um grupo
+    sem WhatsApp não deixa os seguintes sem aviso.
+
+    O resultado fica em cada reserva (`aviso_saida`), porque a resposta do
+    pedido já foi embora quando o último aviso sai: quem ficou sem aviso
+    aparece como alerta na tela Hoje (`hoje.py`), com nome e telefone, para a
+    agência ligar antes de o grupo ir ao ponto de embarque."""
+    db = get_db()
+    avisadas = 0
+    for r in canceladas:
+        saiu = await agenda_worker.avisar(db, tenant_id, r, "cancelamento_saida", config,
+                                          ritmo=agenda_worker.RITMO_URGENTE)
+        await db.appointments.update_one(
+            {"id": r["id"], "tenant_id": tenant_id},
+            {"$set": {"aviso_saida": "enviado" if saiu else "sem_aviso"}})
+        if saiu:
+            avisadas += 1
+    logger.info("Saída cancelada: %d de %d grupos avisados", avisadas, len(canceladas))
+    return avisadas
 
 
 @router.post("/saidas/reabrir")

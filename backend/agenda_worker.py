@@ -36,10 +36,16 @@ import unicodedata
 from datetime import datetime, timedelta, timezone
 
 import agenda
+import ritmo_envio
 import saidas
 from db import get_db
+from whatsapp_client import CANAL_WUZAPI
 
 logger = logging.getLogger("turismo.agenda")
+
+# Como `avisar` espaça os envios em lote (ver `ritmo_envio`).
+RITMO_ADIAVEL = "adiavel"   # lembrete e solicitação vencida: intervalo + teto por hora
+RITMO_URGENTE = "urgente"   # cancelamento de saída: intervalo, sem teto
 
 # De quanto em quanto tempo a varredura de lembretes roda. Lembrete é sobre
 # hora marcada: quem tem consulta às 14h de amanhã não fica pior por receber o
@@ -236,12 +242,19 @@ async def _conexao(db, tenant_id: str, agendamento: dict) -> dict:
 
 
 async def avisar(db, tenant_id: str, agendamento: dict, tipo: str, config: dict = None,
-                 marcar_espera: bool = False) -> bool:
+                 marcar_espera: bool = False, ritmo: str | None = None) -> bool | None:
     """Manda um aviso de agenda para o contato. Devolve se saiu.
 
     A conversa sai de `outbound.ensure_session`, nunca montada aqui: é a regra
     do projeto, e é ela que garante que a resposta do contato caia numa conversa
     com contexto em vez de abrir uma segunda para o mesmo número.
+
+    `ritmo` é para envio em lote no canal não oficial (ver `ritmo_envio`):
+    `RITMO_ADIAVEL` (varredura: intervalo entre avisos e teto por hora) ou
+    `RITMO_URGENTE` (cancelamento de saída: intervalo, sem teto). Sem ritmo, é
+    o envio de um clique, que sai na hora. Com `RITMO_ADIAVEL`, devolve
+    **None** quando o teto da hora estourou: nada foi enviado, e quem chama
+    deixa o aviso para a próxima varredura.
 
     Nunca levanta. Um lembrete que não sai é ruim; uma varredura que morre no
     primeiro contato sem conexão deixaria todos os outros sem lembrete nenhum.
@@ -282,6 +295,10 @@ async def avisar(db, tenant_id: str, agendamento: dict, tipo: str, config: dict 
         # No canal wuzapi a janela conta como aberta e o aviso sai como texto
         # livre, sem depender de modelo aprovado — que é o que torna o
         # lembrete possível numa conexão não oficial, onde modelo não existe.
+        if ritmo and conn.get("canal") == CANAL_WUZAPI:
+            if not await ritmo_envio.vez(conn["id"], adiavel=ritmo == RITMO_ADIAVEL):
+                return None
+            await flow_runtime.digitar_antes_de_avisar(tenant_id, session["id"], texto)
         if flow_runtime.janela_aberta(session, conn.get("canal")):
             await flow_runtime.send_human_message(tenant_id, session["id"], texto)
         elif modelo:
@@ -425,12 +442,10 @@ async def _avisar_expiradas(db, agora: datetime):
     vencidas = await db.appointments.find(
         {"aviso_expiracao": "pendente"}, {"_id": 0},
     ).sort([("_id", 1)]).to_list(MAX_POR_PASSADA)
-    configs = {}
-    enviados = 0
-    for a in vencidas:
+    configs = await _configs(db, vencidas)
+
+    async def um(a) -> bool:
         tenant_id = a["tenant_id"]
-        if tenant_id not in configs:
-            configs[tenant_id] = await agenda.configuracao(db, tenant_id)
         config = configs[tenant_id]
         # Passeio que já aconteceu há mais de meio dia (servidor parado, por
         # exemplo): o aviso chegaria como notícia velha.
@@ -441,11 +456,26 @@ async def _avisar_expiradas(db, agora: datetime):
             {"id": a["id"], "tenant_id": tenant_id, "aviso_expiracao": "pendente"},
             {"$set": {"aviso_expiracao": destino, "updated_at": _now()}})
         if destino != "enviado" or not res.modified_count:
-            continue
-        if await avisar(db, tenant_id, a, "expiracao", config):
-            enviados += 1
+            return False
+        saiu = await avisar(db, tenant_id, a, "expiracao", config, ritmo=RITMO_ADIAVEL)
+        if saiu is None:
+            # Teto da hora do número: nada saiu, volta para a próxima varredura.
+            await db.appointments.update_one(
+                {"id": a["id"], "tenant_id": tenant_id, "aviso_expiracao": "enviado"},
+                {"$set": {"aviso_expiracao": "pendente", "updated_at": _now()}})
+        return bool(saiu)
+
+    enviados = sum(await asyncio.gather(*(um(a) for a in vencidas)))
     if enviados:
         logger.info("Avisos de solicitação vencida enviados: %d", enviados)
+
+
+async def _configs(db, docs: list) -> dict:
+    configs = {}
+    for a in docs:
+        if a["tenant_id"] not in configs:
+            configs[a["tenant_id"]] = await agenda.configuracao(db, a["tenant_id"])
+    return configs
 
 
 async def _varrer():
@@ -459,31 +489,43 @@ async def _varrer():
     if not pendentes:
         return
 
-    configs = {}
-    enviados = 0
-    for a in pendentes:
+    configs = await _configs(db, pendentes)
+
+    async def um(a) -> bool:
         tenant_id = a["tenant_id"]
-        if tenant_id not in configs:
-            configs[tenant_id] = await agenda.configuracao(db, tenant_id)
         config = configs[tenant_id]
         if not config.get("lembrete_ativo"):
-            continue
+            return False
         horas = float(config.get("lembrete_horas") or 24)
         if a["inicio"] > agenda._iso(agora + timedelta(hours=horas)):
-            continue  # ainda cedo para esta empresa
+            return False  # ainda cedo para esta empresa
 
         # A marca é gravada **antes** do envio. Um envio que falhe no meio e
         # deixasse a marca em branco faria a passada seguinte tentar de novo, e
         # um contato pode acabar recebendo o mesmo lembrete a cada cinco minutos
         # enquanto a conexão estiver instável. Perder um lembrete é melhor que
         # repeti-lo em laço, e a falha fica no log.
-        await db.appointments.update_one(
+        marca = _now()
+        res = await db.appointments.update_one(
             {"id": a["id"], "tenant_id": tenant_id, "lembrete_enviado_em": None},
-            {"$set": {"lembrete_enviado_em": _now(), "updated_at": _now()}},
+            {"$set": {"lembrete_enviado_em": marca, "updated_at": marca}},
         )
-        await avisar(db, tenant_id, a, "lembrete", config, marcar_espera=True)
-        enviados += 1
+        if not res.modified_count:
+            return False  # alguém lembrou pela tela neste meio-tempo
+        saiu = await avisar(db, tenant_id, a, "lembrete", config, marcar_espera=True,
+                            ritmo=RITMO_ADIAVEL)
+        if saiu is None:
+            # Teto da hora do número: nada saiu. A marca é desfeita (só a nossa)
+            # e a próxima varredura tenta de novo; lembrete chega com folga.
+            await db.appointments.update_one(
+                {"id": a["id"], "tenant_id": tenant_id, "lembrete_enviado_em": marca},
+                {"$set": {"lembrete_enviado_em": None, "updated_at": _now()}})
+            return False
+        return True
 
+    # Em paralelo entre números, em fila dentro de cada número (`ritmo_envio`):
+    # uma agência com 30 lembretes não atrasa os das outras.
+    enviados = sum(await asyncio.gather(*(um(a) for a in pendentes)))
     if enviados:
         logger.info("Lembretes de agenda enviados: %d", enviados)
 

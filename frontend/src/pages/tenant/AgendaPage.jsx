@@ -694,17 +694,15 @@ function CancelarSaida({ saida, reservas, onFechar, onFeito }) {
       const r = await api.post("/agenda/saidas/cancelar", {
         service_id: saida.service_id, inicio: saida.inicio, motivo: m.slice(0, 200), avisar,
       });
-      const { canceladas = 0, avisadas = 0, sem_aviso: semAviso = 0 } = r.data || {};
-      const partes = [`Saída cancelada. ${canceladas} ${canceladas === 1 ? "reserva cancelada" : "reservas canceladas"}`];
-      if (avisar && canceladas) {
-        partes.push(`${avisadas} ${avisadas === 1 ? "grupo avisado" : "grupos avisados"} pelo WhatsApp`);
-      }
-      const texto = partes.join(", ");
-      if (avisar && semAviso) {
-        toast.warning(`${texto}. ${semAviso} ${semAviso === 1 ? "grupo ficou" : "grupos ficaram"} sem aviso: avise por telefone.`,
+      const { canceladas = 0, avisando = 0 } = r.data || {};
+      const texto = `Saída cancelada. ${canceladas} ${canceladas === 1 ? "reserva cancelada" : "reservas canceladas"}.`;
+      if (avisando) {
+        // Os avisos saem espaçados (proteção do número contra bloqueio), depois
+        // desta resposta. Quem o WhatsApp não alcançar aparece na tela Hoje.
+        toast.success(`${texto} ${avisando === 1 ? "O grupo vai ser avisado" : `Os ${avisando} grupos vão ser avisados`} pelo WhatsApp nos próximos minutos. Se algum não puder ser avisado, ele aparece na tela Hoje para você ligar.`,
           { duration: 12000 });
       } else {
-        toast.success(`${texto}.`);
+        toast.success(texto);
       }
       onFeito();
     } catch (e) {

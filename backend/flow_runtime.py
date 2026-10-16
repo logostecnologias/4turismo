@@ -58,14 +58,22 @@ def pediu_opt_out(texto: str) -> bool:
 # preenche mais, e a Central mostra as iniciais do contato.
 
 
-async def _marcar_lida_bg(cred, wamid: str):
+# Quanto o canal não oficial espera antes de marcar como lida. Lida no mesmo
+# milissegundo em que chegou é tão robótica quanto nunca lida; uma pessoa leva
+# um ou dois segundos para abrir a conversa.
+LEITURA_ESPERA = (1.0, 3.0)
+
+
+async def _marcar_lida_bg(cred, wamid: str, chat: str | None = None):
     """Confirmação de leitura, sem atrapalhar a resposta.
 
     Em tarefa própria de propósito: é uma ida à rede que não muda nada do
     atendimento, e esperá-la atrasaria a resposta do bot em uma volta inteira.
     """
     try:
-        await whatsapp.marcar_lida(cred, wamid)
+        if getattr(cred, "canal", None) == whatsapp.CANAL_WUZAPI:
+            await asyncio.sleep(random.uniform(*LEITURA_ESPERA))
+        await whatsapp.marcar_lida(cred, wamid, chat=chat)
     except Exception as e:
         logger.debug("Não foi possível marcar %s como lida: %s", wamid, e)
 
@@ -311,6 +319,22 @@ async def _ritmo(cred, number, o: dict, inicio: float | None) -> None:
         await asyncio.sleep(espera)
 
 
+async def digitar_antes_de_avisar(tenant_id: str, session_id: str, texto: str) -> None:
+    """O "digitando…" de um aviso que a plataforma manda primeiro (lembrete,
+    cancelamento de saída), no canal não oficial. Mesmo ritmo da resposta do
+    robô; o intervalo entre um aviso e o seguinte é de `ritmo_envio`. Nunca
+    levanta: o aviso sai do mesmo jeito."""
+    try:
+        ctx = await _outgoing_context(get_db(), tenant_id, session_id)
+        if not ctx:
+            return
+        _, contact, cred, _ = ctx
+        if cred and contact and getattr(cred, "canal", None) == whatsapp.CANAL_WUZAPI:
+            await _ritmo(cred, destino(contact), {"type": "text", "content": texto}, None)
+    except Exception as e:
+        logger.debug("Digitação antes do aviso falhou: %s", e)
+
+
 async def _send_outputs(db, tenant_id, cred, number, session_id, outputs,
                         inicio: float | None = None):
     """`inicio` marca a resposta como automática (bot ou IA): no canal não
@@ -530,12 +554,15 @@ async def _uma_por_vez(chave: str):
 async def handle_incoming_message(tenant_id: str, from_number: str, text: str,
                                   message_id: str, connection_id: str | None = None,
                                   push_name: str | None = None, media: dict | None = None,
-                                  escolha: dict | None = None):
+                                  escolha: dict | None = None, chat_jid: str | None = None):
     """Ponto de entrada do webhook, uma mensagem por vez em cada conversa.
 
     A chave é (empresa, conexão, número), que é a mesma identidade que
     `conversation_sessions` usa. Ela é montada antes de qualquer leitura do
     banco, senão a corrida aconteceria justamente na busca da sessão.
+
+    `chat_jid` é o JID do chat como a WuzAPI o entregou (pode ser `@lid`), só
+    para marcar a mensagem como lida; nada mais o usa.
     """
     # O instante da chegada, antes da trava: o tempo que a mensagem esperou a
     # anterior sair e o que a IA levou para responder já contam como
@@ -544,10 +571,10 @@ async def handle_incoming_message(tenant_id: str, from_number: str, text: str,
     async with _uma_por_vez(f"{tenant_id}:{connection_id or '-'}:{from_number}"):
         return await _processar_mensagem(tenant_id, from_number, text, message_id,
                                          connection_id, push_name, media, escolha,
-                                         inicio=inicio)
+                                         inicio=inicio, chat_jid=chat_jid)
 
 
-async def _processar_mensagem(tenant_id: str, from_number: str, text: str, message_id: str, connection_id: str | None = None, push_name: str | None = None, media: dict | None = None, escolha: dict | None = None, inicio: float | None = None):
+async def _processar_mensagem(tenant_id: str, from_number: str, text: str, message_id: str, connection_id: str | None = None, push_name: str | None = None, media: dict | None = None, escolha: dict | None = None, inicio: float | None = None, chat_jid: str | None = None):
     """Called from webhook. Advances the conversation for this contact.
 
     `connection_id` identifies exactly which whatsapp_connection (and thus
@@ -692,7 +719,7 @@ async def _processar_mensagem(tenant_id: str, from_number: str, text: str, messa
     # lida mesmo depois de o bot responder, o que na conversa parece empresa
     # que não leu. Best-effort: falhar aqui não pode atrapalhar a resposta.
     if cred:
-        asyncio.create_task(_marcar_lida_bg(cred, message_id))
+        asyncio.create_task(_marcar_lida_bg(cred, message_id, chat_jid))
 
     # Descadastro. Vale para qualquer mensagem: o contato pode pedir para sair
     # quando quiser. Sinaliza e segue — quem pediu para sair continua sendo

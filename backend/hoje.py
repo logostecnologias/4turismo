@@ -164,6 +164,23 @@ async def montar(db, user: dict, agora_dt: datetime | None = None) -> dict:
                         "texto": f"A chave de IA do assistente {a.get('nome')} parou de "
                                  "funcionar. As conversas estão indo para a recepção."})
 
+    # Saída cancelada (chuva) com grupo que o WhatsApp não alcançou. Os avisos
+    # saem aos poucos, depois de a tela de cancelamento já ter respondido, e é
+    # aqui que a agência descobre quem precisa de ligação. Some quando o
+    # horário da saída passa.
+    sem_aviso = await db.appointments.find(
+        {"tenant_id": tenant_id, "aviso_saida": "sem_aviso",
+         "inicio": {"$gte": agora}},
+        {"_id": 0, "contact_nome": 1, "contact_numero": 1, "service_nome": 1, "inicio": 1},
+    ).sort([("inicio", 1), ("_id", 1)]).to_list(50)
+    for r in sem_aviso:
+        quando = agenda.rotulo_completo(r["inicio"], tz)
+        alertas.append({"tipo": "aviso_saida",
+                        "texto": f"{r.get('contact_nome') or 'Um grupo'} "
+                                 f"({saidas.telefone(r.get('contact_numero'))}) não recebeu "
+                                 f"pelo WhatsApp o cancelamento de {r.get('service_nome') or 'passeio'} "
+                                 f"em {quando}. Avise por telefone."})
+
     # O mês, no calendário da agência.
     mes_ini = agenda._iso(datetime(hoje_local.year, hoje_local.month, 1, tzinfo=tz))
     decididos = {"concluido": 0, "faltou": 0}

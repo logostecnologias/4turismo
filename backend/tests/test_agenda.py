@@ -41,6 +41,7 @@ db_mod.get_db = lambda: DB
 import agenda as dominio
 import agenda_flow
 import agenda_worker
+import hoje
 import ai_tools
 import saidas
 import routes.scheduling as rs
@@ -464,7 +465,7 @@ async def etapa_aviso_expiracao(ctx):
 
     avisos = []
 
-    async def avisar_falso(db, tenant_id, doc, tipo, config=None, marcar_espera=False):
+    async def avisar_falso(db, tenant_id, doc, tipo, config=None, marcar_espera=False, **kw):
         avisos.append((tipo, doc["id"]))
         return True
 
@@ -481,6 +482,24 @@ async def etapa_aviso_expiracao(ctx):
         await agenda_worker._avisar_expiradas(DB, agora)
         check("a passada seguinte não repete o aviso", len(avisos) == 2, avisos)
 
+        # Teto da hora estourado: nada sai, e o aviso volta a ficar pendente.
+        p = await reservar(ctx, dia=sexta, hh=8, adultos=1, origem="bot")
+        await DB.appointments.update_one({"id": p["id"]}, {"$set": {
+            "expira_em": dominio._iso(agora - timedelta(minutes=1))}})
+        await saidas.expirar_solicitacoes(DB, agora)
+
+        async def adiado(db, tenant_id, doc, tipo, config=None, marcar_espera=False, **kw):
+            return None
+        agenda_worker.avisar = adiado
+        await agenda_worker._avisar_expiradas(DB, agora)
+        agenda_worker.avisar = avisar_falso
+        doc = await DB.appointments.find_one({"id": p["id"]})
+        check("aviso adiado pelo teto volta a ficar pendente",
+              doc["aviso_expiracao"] == "pendente", doc.get("aviso_expiracao"))
+        await agenda_worker._avisar_expiradas(DB, agora)
+        check("e sai na passada seguinte", ("expiracao", p["id"]) in avisos, avisos)
+        n_avisos = len(avisos)
+
         # Desligado na configuração: dispensa sem mandar.
         await DB.scheduling_settings.update_one(
             {"tenant_id": TENANT}, {"$set": {"avisar_expiracao": False}}, upsert=True)
@@ -490,7 +509,7 @@ async def etapa_aviso_expiracao(ctx):
         await saidas.expirar_solicitacoes(DB, agora)
         await agenda_worker._avisar_expiradas(DB, agora)
         doc = await DB.appointments.find_one({"id": p["id"]})
-        check("com o aviso desligado, nada sai", len(avisos) == 2
+        check("com o aviso desligado, nada sai", len(avisos) == n_avisos
               and doc["aviso_expiracao"] == "dispensado", doc.get("aviso_expiracao"))
         await DB.scheduling_settings.update_one(
             {"tenant_id": TENANT}, {"$set": {"avisar_expiracao": True}})
@@ -503,7 +522,7 @@ async def etapa_aviso_expiracao(ctx):
         depois = dominio._instante(p["inicio"]) + timedelta(hours=13)
         await agenda_worker._avisar_expiradas(DB, depois)
         doc = await DB.appointments.find_one({"id": p["id"]})
-        check("aviso de passeio que já aconteceu é dispensado", len(avisos) == 2
+        check("aviso de passeio que já aconteceu é dispensado", len(avisos) == n_avisos
               and doc["aviso_expiracao"] == "dispensado", doc.get("aviso_expiracao"))
     finally:
         agenda_worker.avisar = original
@@ -624,7 +643,7 @@ async def etapa_rotas(ctx):
     _conectar_fake()
     avisos = []
 
-    async def avisar_falso(db, tenant_id, doc, tipo, config=None, marcar_espera=False):
+    async def avisar_falso(db, tenant_id, doc, tipo, config=None, marcar_espera=False, **kw):
         avisos.append((tipo, doc["id"]))
         return True
 
@@ -743,6 +762,27 @@ async def etapa_lembrete(ctx):
     check("{valor} sai em reais", "R$ 600,00" in modelo, modelo)
     ctx["lembrado"] = confirmada
     await saidas.cancelar(DB, TENANT, solicitada["id"])
+
+    # Teto da hora do número estourado (`ritmo_envio`): `avisar` devolve None,
+    # nada saiu, e o lembrete tem de voltar para a próxima varredura em vez de
+    # ficar marcado como enviado.
+    chamadas = []
+
+    async def avisar_adiado(db, tenant_id, doc, tipo, config=None, marcar_espera=False, **kw):
+        chamadas.append((tipo, kw.get("ritmo")))
+        return None
+
+    original = agenda_worker.avisar
+    agenda_worker.avisar = avisar_adiado
+    try:
+        await agenda_worker._varrer()
+    finally:
+        agenda_worker.avisar = original
+    check("a varredura manda o lembrete com o ritmo de lote (adiável)",
+          ("lembrete", agenda_worker.RITMO_ADIAVEL) in chamadas, chamadas)
+    doc = await DB.appointments.find_one({"id": confirmada["id"]})
+    check("lembrete adiado pelo teto volta a ficar pendente",
+          doc["lembrete_enviado_em"] is None, doc.get("lembrete_enviado_em"))
 
 
 async def etapa_resposta_do_lembrete(ctx):
@@ -1373,7 +1413,7 @@ async def etapa_cancelar_saida(ctx):
     inicio = ctx["quinta_8"]
     avisos = []
 
-    async def avisar_falso(db, tenant_id, doc, tipo, config=None, marcar_espera=False):
+    async def avisar_falso(db, tenant_id, doc, tipo, config=None, marcar_espera=False, **kw):
         avisos.append((tipo, doc["id"], doc.get("motivo_cancelamento")))
         return doc["contact_id"] != "c-3"  # um grupo sem WhatsApp
 
@@ -1382,14 +1422,23 @@ async def etapa_cancelar_saida(ctx):
     try:
         r = await rs.cancelar_saida(rs.CancelarSaidaIn(
             service_id=lagoa["id"], inicio=inicio, motivo="Chuva forte"), ADMIN)
+        check("a resposta volta antes dos avisos (que saem espaçados)",
+              r["avisando"] == 4 and rs._AVISOS_EM_ANDAMENTO, r)
+        await asyncio.gather(*list(rs._AVISOS_EM_ANDAMENTO))
     finally:
         agenda_worker.avisar = original
     check("cancelar a saída cancela todos os grupos dela", r["canceladas"] == 4, r)
     check("e avisa cada um com a mensagem de saída cancelada e o motivo",
           len(avisos) == 4 and all(t == "cancelamento_saida" and m == "Chuva forte"
                                    for t, _, m in avisos), avisos)
-    check("a resposta separa quem foi avisado de quem ficou sem aviso",
-          (r["avisadas"], r["sem_aviso"]) == (2, 2), r)
+    marcas = sorted([(await DB.appointments.find_one({"id": i}))["aviso_saida"]
+                     for _, i, _ in avisos])
+    check("cada reserva guarda se o aviso saiu",
+          marcas == ["enviado", "enviado", "sem_aviso", "sem_aviso"], marcas)
+    painel = await hoje.montar(DB, ADMIN)
+    alertas = [a for a in painel["alertas"] if a["tipo"] == "aviso_saida"]
+    check("quem ficou sem aviso aparece na tela Hoje para a agência ligar",
+          len(alertas) == 2 and all("Avise por telefone" in a["texto"] for a in alertas), alertas)
     check("a saída aparece cancelada, sem vaga e fechada, com o motivo",
           r["saida"]["cancelada"] and r["saida"]["vagas"] == 0 and not r["saida"]["aberta"]
           and r["saida"]["motivo_cancelamento"] == "Chuva forte", r["saida"])

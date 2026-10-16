@@ -473,6 +473,25 @@ async def presence(token: str, number: str, audio: bool = False) -> None:
         logger.debug("Indicador de digitação falhou para %s: %s", number, e)
 
 
+async def marcar_lida(token: str, message_id: str, chat: str) -> None:
+    """Os dois tiques azuis na mensagem que o contato mandou.
+
+    `POST /chat/markread` com `{"Id": [...], "ChatPhone": ...}`, conferido no
+    handler da versão fixada em infra/compose.yaml (`MarkRead`). `chat` é o
+    JID do chat **como chegou** no webhook (`Info.Chat`, que pode ser um
+    `@lid`), não o número reconstruído: o recibo de leitura vai para o chat, e
+    um JID diferente do da conversa marcaria nada.
+
+    Uma chamada, sem retry, como o indicador de digitação. Levanta em falha
+    para quem chama registrar; quem chama engole.
+    """
+    resp = await _get_client().post(
+        f"{_base()}/chat/markread", headers=_token_headers(token),
+        json={"Id": [message_id], "ChatPhone": chat}, timeout=5.0)
+    if resp.status_code >= 400:
+        raise WuzapiError(f"markread {resp.status_code}: {resp.text[:200]}")
+
+
 _MEDIA_ENDPOINTS = {
     "image": ("/chat/send/image", "Image"),
     "audio": ("/chat/send/audio", "Audio"),
