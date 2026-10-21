@@ -1,15 +1,91 @@
 {% extends "base.html" %}
 {% block estilo %}
-  .hero { position: relative; color: #FFFFFF; background: var(--brand); overflow: hidden; }
-  .hero img.fundo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-  .hero .veu { position: absolute; inset: 0;
-               background: linear-gradient(180deg, rgba(0,0,0,.15) 0%, rgba(0,0,0,.6) 100%); }
-  .hero .container { position: relative; padding-top: 96px; padding-bottom: 72px; }
-  .hero.sem-capa .container { padding-top: 72px; padding-bottom: 56px; }
+  /* O topo. Com foto, a foto ocupa quase a tela inteira, com um véu escuro do
+     lado do texto; sem foto, um degradê da cor da marca com o sol e as dunas
+     desenhados, para nunca ser um bloco chapado. As dunas no pé fazem a
+     passagem para a página e aparecem nos dois casos. */
+  .hero { position: relative; color: #FFFFFF; overflow: hidden; isolation: isolate;
+          min-height: clamp(480px, 78vh, 760px); display: flex; align-items: center;
+          background: radial-gradient(120% 90% at 85% 10%, color-mix(in srgb, var(--brand) 55%, #FFFFFF) 0%, transparent 55%),
+                      linear-gradient(160deg, var(--brand) 0%, color-mix(in srgb, var(--brand) 55%, #000000) 100%); }
+  /* Sem foto o texto segue a cor de texto da marca: há paleta cuja marca
+     clara pede texto escuro, e branco sobre ela não passaria. */
   .hero.sem-capa { color: var(--brand-fg); }
-  .hero h1 { max-width: 18ch; color: inherit; }
-  .hero p.lead { font-size: 1.15rem; max-width: 46ch; opacity: .95; }
-  .hero .acoes { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+  .hero img.fundo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2;
+                    transform: scale(1.04); }
+  .hero .veu { position: absolute; inset: 0; z-index: -1;
+               background: linear-gradient(90deg, rgba(0,0,0,.62) 0%, rgba(0,0,0,.35) 55%, rgba(0,0,0,.12) 100%),
+                           linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,.35) 100%); }
+  .hero .sol { position: absolute; z-index: -1; right: 8%; top: 14%; width: clamp(120px, 18vw, 240px);
+               aspect-ratio: 1; border-radius: 50%; background: #F5B841; opacity: .9;
+               box-shadow: 0 0 0 18px rgba(245,184,65,.18), 0 0 0 44px rgba(245,184,65,.08); }
+  .hero .dunas { position: absolute; left: 0; right: 0; bottom: -1px; width: 100%; height: clamp(60px, 9vw, 130px);
+                 display: block; z-index: -1; }
+  .hero .dunas .longe { fill: #FFFFFF; opacity: .14; }
+  .hero .dunas .perto { fill: var(--bg); }
+  .hero .container { position: relative; padding-top: 72px; padding-bottom: clamp(96px, 12vw, 150px); }
+  .hero .local { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600;
+                 letter-spacing: .04em; text-transform: uppercase; opacity: .92; margin-bottom: 14px; }
+  .hero .local svg { width: 16px; height: 16px; }
+  .hero h1 { max-width: 16ch; color: inherit; font-size: clamp(2.3rem, 6vw, 4.2rem); text-wrap: balance;
+             text-shadow: 0 2px 24px rgba(0,0,0,.18); }
+  .hero p.lead { font-size: clamp(1.05rem, 1.6vw, 1.25rem); max-width: 52ch; opacity: .95; }
+  .hero .acoes { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+  .hero .acoes .btn { min-height: 52px; padding: 14px 26px; }
+  .hero .fatos { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 28px 0 0; padding: 0; list-style: none;
+                 font-size: 15px; opacity: .95; }
+  .hero .fatos li { display: inline-flex; align-items: center; gap: 8px; }
+  .hero .fatos li::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #F5B841; }
+  @media (prefers-reduced-motion: no-preference) {
+    .hero .container > * { animation: subir .7s cubic-bezier(.2,.7,.2,1) both; }
+    .hero .container > *:nth-child(2) { animation-delay: .06s; }
+    .hero .container > *:nth-child(3) { animation-delay: .12s; }
+    .hero .container > *:nth-child(n+4) { animation-delay: .18s; }
+    .hero img.fundo { animation: aproximar 1.6s cubic-bezier(.2,.7,.2,1) both; }
+  }
+  @keyframes subir { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  @keyframes aproximar { from { transform: scale(1.1); } to { transform: scale(1.04); } }
+  @media (max-width: 640px) {
+    .hero { min-height: 0; }
+    .hero .container { padding-top: 56px; }
+    .hero .sol { right: -40px; top: 24px; opacity: .55; }
+    .hero .acoes .btn { flex: 1 1 100%; }
+  }
+  /* Como funciona: os três passos são sempre os mesmos, porque é o caminho do
+     produto (passeio → WhatsApp → confirmação), e não dependem da agência. */
+  .passos { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            list-style: none; padding: 0; margin: 0; counter-reset: passo; }
+  .passos li { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: var(--raio);
+               padding: 24px 22px 22px; counter-increment: passo; }
+  .passos li::before { content: counter(passo); display: flex; align-items: center; justify-content: center;
+                       width: 40px; height: 40px; border-radius: 12px; background: var(--brand); color: var(--brand-fg);
+                       font-family: var(--titulo); font-weight: 700; font-size: 1.15rem; margin-bottom: 14px; }
+  .passos h3 { font-size: 1.1rem; margin-bottom: 6px; }
+  .passos p { margin: 0; color: var(--text-2); font-size: 16px; }
+  /* Chamada final, antes do rodapé. */
+  .chamada-final { padding: 64px 0; }
+  /* Passeios: até quatro por linha no computador (quatro passeios não deixam
+     um sozinho embaixo) e dois no celular, com o cartão mais enxuto. */
+  .grade-passeios { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+  .grade-passeios .resumo { margin: 0; color: var(--text-2); display: -webkit-box; -webkit-box-orient: vertical;
+                            -webkit-line-clamp: 3; overflow: hidden; }
+  @media (max-width: 640px) {
+    .grade-passeios { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .grade-passeios .corpo { padding: 12px; gap: 4px; }
+    .grade-passeios h3 { font-size: 1rem; line-height: 1.25; }
+    .grade-passeios .resumo { font-size: 14px; line-height: 1.45; -webkit-line-clamp: 2; }
+    .grade-passeios .meta { font-size: 12.5px; }
+    .grade-passeios .meta span + span { display: none; }
+    .grade-passeios .etiqueta-preco { left: 8px; bottom: 8px; padding: 4px 9px; font-size: 13px; }
+    .grade-passeios .etiqueta-preco small { display: none; }
+    /* O cartão inteiro é o link; o "Ver detalhes e datas" quebraria em duas linhas. */
+    .grade-passeios .mais { display: none; }
+  }
+  .chamada-final .caixa { border-radius: calc(var(--raio) + 8px); padding: clamp(28px, 5vw, 48px);
+                          color: #FFFFFF; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px;
+                          background: radial-gradient(80% 140% at 100% 0%, color-mix(in srgb, var(--brand) 60%, #FFFFFF) 0%, transparent 60%),
+                                      linear-gradient(135deg, var(--brand), color-mix(in srgb, var(--brand) 60%, #000000)); }
+  .chamada-final h2 { margin: 0; color: inherit; max-width: 22ch; }
   .hero .selo-nota { background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.45); color: #FFFFFF;
                      margin-top: 4px; backdrop-filter: blur(4px); }
   .hero.sem-capa .selo-nota { background: rgba(255,255,255,.35); color: var(--brand-fg); border-color: transparent; }
@@ -22,8 +98,14 @@
 {% endblock %}
 {% block conteudo %}
 <div class="hero {% if not capa %}sem-capa{% endif %}">
-  {% if capa %}<img class="fundo" src="{{ capa.src }}" srcset="{{ capa.srcset }}" sizes="{{ capa.sizes }}" alt="" fetchpriority="high"><div class="veu"></div>{% endif %}
+  {% if capa %}<img class="fundo" src="{{ capa.src }}" srcset="{{ capa.srcset }}" sizes="{{ capa.sizes }}" alt="" fetchpriority="high"><div class="veu"></div>
+  {% else %}<div class="sol" aria-hidden="true"></div>{% endif %}
+  <svg class="dunas" viewBox="0 0 1440 140" preserveAspectRatio="none" aria-hidden="true">
+    <path class="longe" d="M0 70 C 180 20, 360 20, 560 62 S 920 120, 1120 70 S 1360 30, 1440 52 L1440 140 L0 140 Z"/>
+    <path class="perto" d="M0 110 C 220 60, 420 70, 640 100 S 1040 140, 1240 98 S 1400 80, 1440 90 L1440 140 L0 140 Z"/>
+  </svg>
   <div class="container">
+    {% if local %}<div class="local"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>{{ local }}</div>{% endif %}
     <h1>{{ site.chamada or nome }}</h1>
     {% if site.chamada %}<p class="lead">{{ nome }}</p>{% endif %}
     {% include "_avaliacao.html" %}
@@ -35,6 +117,13 @@
       </a>
       {% endif %}
     </div>
+    {% if embarque or confianca %}
+    <ul class="fatos">
+      {% if embarque %}<li>{{ t.busca_titulo }}</li>{% endif %}
+      {% if confianca and confianca.cadastur %}<li>{{ t.selo_cadastur }}</li>{% endif %}
+      {% if confianca and confianca.desde %}<li>{{ t.desde.format(n=confianca.desde) }}</li>{% endif %}
+    </ul>
+    {% endif %}
   </div>
 </div>
 
@@ -45,19 +134,21 @@
       <p>{{ t.passeios_sub }}</p>
     </div>
     {% if passeios %}
-    <div class="grade">
+    <div class="grade grade-passeios">
       {% for p in passeios %}
       <a class="cartao" href="{{ p.url }}">
-        {% if p.foto %}<img class="foto" src="{{ p.foto.src }}" srcset="{{ p.foto.srcset }}" sizes="{{ p.foto.sizes }}" alt="{{ p.nome }}" loading="lazy">
-        {% else %}<div class="foto-vazia">{{ p.nome }}</div>{% endif %}
+        <div class="moldura">
+          {% if p.foto %}<img class="foto" src="{{ p.foto.src }}" srcset="{{ p.foto.srcset }}" sizes="{{ p.foto.sizes }}" alt="{{ p.nome }}" loading="lazy">
+          {% else %}<div class="foto-vazia">{{ p.nome }}</div>{% endif %}
+          {% if p.preco %}<span class="etiqueta-preco">{{ p.preco }} <small>{{ t.por_pessoa }}</small></span>{% endif %}
+        </div>
         <div class="corpo">
           <h3>{{ p.nome }}</h3>
-          {% if p.resumo %}<p style="margin:0;color:var(--text-2)">{{ p.resumo }}</p>{% endif %}
+          {% if p.resumo %}<p class="resumo">{{ p.resumo }}</p>{% endif %}
           <div class="meta">
             {% if p.duracao %}<span>⏱ {{ p.duracao }}</span>{% endif %}
             {% if p.quando %}<span>🗓 {{ p.quando }}</span>{% endif %}
           </div>
-          {% if p.preco %}<div class="preco">{{ p.preco }} <small>{{ t.por_pessoa }}</small></div>{% endif %}
           <span class="mais">{{ t.ver_detalhes }}</span>
         </div>
       </a>
@@ -68,6 +159,22 @@
     {% endif %}
   </div>
 </section>
+
+{% if passeios and whatsapp_link %}
+<section id="como-funciona">
+  <div class="container">
+    <div class="secao-titulo">
+      <h2>{{ t.como_funciona }}</h2>
+      <p>{{ t.como_funciona_sub }}</p>
+    </div>
+    <ol class="passos">
+      <li><h3>{{ t.passo_1 }}</h3><p>{{ t.passo_1_txt }}</p></li>
+      <li><h3>{{ t.passo_2 }}</h3><p>{{ t.passo_2_txt }}</p></li>
+      <li><h3>{{ t.passo_3 }}</h3><p>{{ t.passo_3_txt }}</p></li>
+    </ol>
+  </div>
+</section>
+{% endif %}
 
 {% if confianca %}
 <section class="secao-clara" id="por-que">
@@ -155,6 +262,19 @@
         {% for par in cancelamento.split("\n") if par.strip() %}<p>{{ par }}</p>{% endfor %}
       </div>
       {% endif %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{% if whatsapp_link %}
+<section class="chamada-final">
+  <div class="container">
+    <div class="caixa">
+      <h2>{{ t.pronto_para_ir }}</h2>
+      <a class="btn btn-zap" href="{{ whatsapp_link }}" data-clique data-passeio="">
+        {% include "_icone_zap.html" %}<span>{{ t.falar_whatsapp }}</span>
+      </a>
     </div>
   </div>
 </section>

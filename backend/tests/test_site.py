@@ -225,6 +225,9 @@ async def etapa_paginas(ctx):
     check("as cores são as da paleta da agência (azulejo)", "#1F4E8C" in html)
     check("o link do WhatsApp sem script já funciona", "https://wa.me/5598981112233?text=" in html)
     check("JSON-LD de agência de viagem para o Google", '"@type": "TravelAgency"' in html)
+    check("o logo é o ícone da aba (PNG quadrado) e o do iPhone",
+          f'rel="icon" type="image/png" sizes="48x48" href="/midia/img-{TENANT}?w=48&amp;f=png"' in html
+          and f'rel="apple-touch-icon" href="/midia/img-{TENANT}?w=180&amp;f=png"' in html)
     csp = r.headers.get("content-security-policy", "")
     nonce = re.search(r"'nonce-([^']+)'", csp)
     check("a CSP só deixa rodar o script com o nonce da página",
@@ -477,6 +480,15 @@ async def etapa_imagens():
         check("largura fora da lista vira a mais próxima (robô não enche o disco)",
               imagens_site.pedido_valido(1234, "webp") == (1600, "webp")
               and imagens_site.pedido_valido(10, "webp") == (480, "webp"))
+        caminho, mime = await imagens_site.variante(doc, 180, "png")
+        with Image.open(caminho) as v:
+            check("o ícone do logo largo sai quadrado, sem cortar, sobre branco no iPhone",
+                  mime == "image/png" and v.size == (180, 180) and v.mode == "RGB"
+                  and v.getpixel((90, 2)) == (255, 255, 255) and v.getpixel((90, 90)) != (255, 255, 255), v.size)
+        caminho, _ = await imagens_site.variante(doc, 48, "png")
+        with Image.open(caminho) as v:
+            check("e transparente na aba", v.size == (48, 48) and v.mode == "RGBA" and v.getpixel((24, 1))[3] == 0)
+        check("tamanho de ícone fora da lista vira 48", imagens_site.pedido_valido(500, "png") == (48, "png"))
 
         # Um anexo de conversa igualmente antigo, para provar que a limpeza roda.
         open(os.path.join(pasta, TENANT, "anexo.jpg"), "wb").write(b"x")
@@ -586,7 +598,7 @@ async def etapa_local_guias_idiomas(ctx):
     check("hreflang aponta as versões para o Google",
           'hreflang="pt-BR" href="http://lencois-receptivo.localhost:8010/"' in html
           and 'hreflang="en" href="http://lencois-receptivo.localhost:8010/en/"' in html and 'hreflang="x-default"' in html)
-    check("o seletor de idioma aparece", 'class="idiomas"' in html)
+    check("o seletor de idioma flutuante aparece", 'class="idioma-flutuante"' in html and 'hreflang="en" lang="en"' in html)
     check("espanhol continua desligado", c.get("/es/").status_code == 404)
     check("sem tradução, o conteúdo da agência aparece em português (nunca vazio)",
           "Passeios nos Lençóis" in html)

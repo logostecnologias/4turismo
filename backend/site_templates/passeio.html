@@ -58,7 +58,9 @@
     .barra-reserva .valor { font-weight: 700; }
     .barra-reserva .valor small { font-weight: 500; color: var(--text-3); }
     .barra-reserva .btn { min-height: 44px; padding: 10px 18px; }
-    footer.rodape { padding-bottom: 96px; }
+    footer.rodape { padding-bottom: 168px; }
+    /* Os botões flutuantes sobem para não cobrir a barra de reserva. */
+    .flutuantes { bottom: calc(84px + env(safe-area-inset-bottom)); }
   }
 {% endblock %}
 {% block conteudo %}

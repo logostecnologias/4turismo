@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -535,6 +535,7 @@ function Identidade({ form, setForm }) {
         <div className="grid grid-cols-1 sm:grid-cols-[200px_1fr] gap-4">
           <Campo label="Logo">
             <ImagemUnica id={form.logo_id} rotulo="Logo" testid="site-logo" proporcao="aspect-square"
+              ajuda="Também é o ícone da aba do navegador e do Google. Quadrado fica melhor. Sem logo, a aba mostra a inicial da agência."
               onChange={(id) => setForm((f) => ({ ...f, logo_id: id }))} />
           </Campo>
           <Campo label="Imagem de capa">
@@ -603,6 +604,75 @@ function ComoAparece({ texto, testid }) {
   );
 }
 
+/** Preenche cidade, UF, rua e bairro quando o CEP chega a 8 dígitos
+ * (`GET /site/cep/{cep}`, que consulta ViaCEP e BrasilAPI no servidor).
+ *
+ * Cidade e UF sempre seguem o CEP. Rua e bairro só são trocados se estavam
+ * vazios ou ainda com o que o próprio CEP anterior pôs: o que a agência
+ * digitou não é apagado por uma consulta. O CEP de cidade inteira (Barreirinhas,
+ * Atins: um CEP só para o município) volta sem rua, e o aviso pede o resto.
+ * Quem abre a tela com o CEP já salvo não dispara consulta nenhuma. */
+function useCepAutomatico(form, setForm) {
+  const digitos = String(form.cep || "").replace(/\D/g, "");
+  const consultado = useRef(digitos.length === 8 ? digitos : "");
+  const posto = useRef({ rua: "", bairro: "" });
+  const ruaRef = useRef(null);
+  const atual = useRef(form);
+  atual.current = form;
+  const [estado, setEstado] = useState({ buscando: false, texto: null });
+
+  useEffect(() => {
+    if (digitos.length !== 8) {
+      if (digitos.length < 8) consultado.current = "";
+      setEstado({ buscando: false, texto: null });
+      return undefined;
+    }
+    if (consultado.current === digitos) return undefined;
+    consultado.current = digitos;
+    let vivo = true;
+    setEstado({ buscando: true, texto: "Buscando o endereço…" });
+    (async () => {
+      try {
+        const { data: e } = await api.get(`/site/cep/${digitos}`);
+        if (!vivo) return;
+        const f = atual.current;
+        const ruaNova = e.rua ? `${e.rua}, ` : "";
+        const trocaRua = Boolean(ruaNova) && (!f.endereco_rua.trim() || f.endereco_rua === posto.current.rua);
+        const trocaBairro = Boolean(e.bairro) && (!f.endereco_bairro.trim() || f.endereco_bairro === posto.current.bairro);
+        posto.current = {
+          rua: trocaRua ? ruaNova : posto.current.rua,
+          bairro: trocaBairro ? e.bairro : posto.current.bairro,
+        };
+        setForm((g) => ({
+          ...g, cidade: e.cidade, uf: e.uf,
+          ...(trocaRua ? { endereco_rua: ruaNova } : {}),
+          ...(trocaBairro ? { endereco_bairro: e.bairro } : {}),
+        }));
+        setEstado({
+          buscando: false,
+          texto: e.rua ? "Endereço preenchido. Falta o número." : `CEP de ${e.cidade} inteira: preencha a rua e o bairro.`,
+        });
+        // O cursor vai para o fim da rua, onde falta só o número.
+        if (trocaRua) {
+          setTimeout(() => {
+            const el = ruaRef.current;
+            if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+          }, 0);
+        }
+      } catch (err) {
+        if (vivo) setEstado({ buscando: false, texto: formatApiErrorDetail(err.response?.data?.detail) });
+      } finally {
+        vivo = false;
+      }
+    })();
+    // Desmontou (ou o CEP mudou) no meio da consulta: libera o mesmo CEP
+    // para ser consultado de novo, senão a tela ficaria em "Buscando…".
+    return () => { if (vivo) consultado.current = ""; vivo = false; };
+  }, [digitos, setForm]);
+
+  return { ...estado, ruaRef };
+}
+
 function Localizacao({ dados, form, setForm }) {
   const site = dados.site;
   const mexer = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -610,22 +680,18 @@ function Localizacao({ dados, form, setForm }) {
   const temCoords = site.latitude != null && site.longitude != null;
   const tirando = temCoords && form.coordenadas_mexeu && !form.coordenadas.trim();
   const posicao = temCoords ? `${site.latitude}, ${site.longitude}` : "";
+  const cepAviso = useCepAutomatico(form, setForm);
 
   return (
     <Bloco icone={MapPin} titulo="Onde fica a agência" testid="site-local"
       hint="Endereço completo e a posição no mapa: é o que faz a agência aparecer na busca local do Google (“agência de passeios em Barreirinhas”).">
       <div className="space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-[2fr_1fr] gap-4">
-          <Campo label="Rua e número" contador={<Contador n={form.endereco_rua.length} max={MAX_RUA} />}>
-            <input className="zz-input" value={form.endereco_rua} maxLength={MAX_RUA} data-testid="site-rua"
-              placeholder="Av. Brasília, 100" onChange={mexer("endereco_rua")} />
+        <div className="grid grid-cols-1 sm:grid-cols-[160px_2fr_100px] gap-4">
+          <Campo label="CEP" hint={cepAviso.texto}>
+            <input className="zz-input tabular-nums" inputMode="numeric" value={form.cep} maxLength={9}
+              data-testid="site-cep" placeholder="65590-000" aria-busy={cepAviso.buscando}
+              onChange={(e) => setForm((f) => ({ ...f, cep: mascaraCep(e.target.value) }))} />
           </Campo>
-          <Campo label="Bairro">
-            <input className="zz-input" value={form.endereco_bairro} maxLength={MAX_BAIRRO} data-testid="site-bairro"
-              placeholder="Centro" onChange={mexer("endereco_bairro")} />
-          </Campo>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-[2fr_100px_1fr] gap-4">
           <Campo label="Cidade">
             <input className="zz-input" value={form.cidade} maxLength={MAX_CIDADE} data-testid="site-cidade"
               placeholder="Barreirinhas" onChange={mexer("cidade")} />
@@ -636,10 +702,15 @@ function Localizacao({ dados, form, setForm }) {
               {UFS.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
             </select>
           </Campo>
-          <Campo label="CEP">
-            <input className="zz-input tabular-nums" inputMode="numeric" value={form.cep} maxLength={9}
-              data-testid="site-cep" placeholder="65590-000"
-              onChange={(e) => setForm((f) => ({ ...f, cep: mascaraCep(e.target.value) }))} />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-[2fr_1fr] gap-4">
+          <Campo label="Rua e número" contador={<Contador n={form.endereco_rua.length} max={MAX_RUA} />}>
+            <input ref={cepAviso.ruaRef} className="zz-input" value={form.endereco_rua} maxLength={MAX_RUA}
+              data-testid="site-rua" placeholder="Av. Brasília, 100" onChange={mexer("endereco_rua")} />
+          </Campo>
+          <Campo label="Bairro">
+            <input className="zz-input" value={form.endereco_bairro} maxLength={MAX_BAIRRO} data-testid="site-bairro"
+              placeholder="Centro" onChange={mexer("endereco_bairro")} />
           </Campo>
         </div>
 

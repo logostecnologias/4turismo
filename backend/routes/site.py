@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 from pymongo.errors import DuplicateKeyError
 
+import cep as cep_mod
 import contatos_csv
 import imagens_site
 import site_guias
@@ -225,6 +226,12 @@ async def sugestao_slug(user=Depends(require_tenant_admin)):
     db = get_db()
     tenant = await db.tenants.find_one({"id": user["tenant_id"]}, {"_id": 0, "name": 1}) or {}
     return {"slug": await sites.sugerir_slug(db, tenant.get("name") or "agencia", user["tenant_id"])}
+
+
+@router.get("/cep/{cep}")
+async def endereco_do_cep(cep: str, user=Depends(require_tenant_admin)):
+    """Rua, bairro, cidade e UF do CEP, para a tela preencher o endereço."""
+    return await cep_mod.consultar(cep)
 
 
 @router.post("/midia")

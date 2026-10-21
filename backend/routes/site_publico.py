@@ -11,6 +11,7 @@ host diz qual site é (`sites.site_por_host`): subdomínio do domínio base ou
 domínio próprio da agência. Nada aqui usa sessão do painel: é público, e o
 cookie do painel nem chega a este host.
 """
+import html
 import json
 import secrets
 from datetime import datetime, timezone
@@ -290,6 +291,30 @@ def _comum(c: dict, config: dict) -> dict:
             "horario": sites.horario_exibido(st, c["idioma"]), "endereco": sites.endereco_exibido(c["site"])}
 
 
+def _icones(c: dict, nome: str) -> dict:
+    """Os `<link rel=icon>` da página: o próprio logo, encaixado num quadrado
+    (`imagens_site._quadrado`), para a agência não ter de subir outra imagem.
+
+    Sem logo, a inicial da agência na cor da marca, em SVG embutido:
+    a aba com o globo cinza do navegador é o que mais faz um site parecer
+    inacabado, e a inicial não exige nada da agência.
+    """
+    mid = c["site"].get("logo_id")
+    if mid:
+        return {"png": [{"href": _midia(mid, c["previa"], l, "png"), "lado": l}
+                        for l in imagens_site.ICONES if l != imagens_site.ICONE_OPACO],
+                "apple": _midia(mid, c["previa"], imagens_site.ICONE_OPACO, "png")}
+    letra = next((ch for ch in (nome or "") if ch.isalnum()), "").upper()
+    if not letra:
+        return {}
+    p = c["paleta"]
+    svg = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
+           f'<rect width="64" height="64" rx="14" fill="{p["brand"]}"/>'
+           f'<text x="32" y="44" font-family="Arial,Helvetica,sans-serif" font-size="36" font-weight="700" '
+           f'text-anchor="middle" fill="{p["brand_fg"]}">{html.escape(letra)}</text></svg>')
+    return {"svg": "data:image/svg+xml," + quote(svg)}
+
+
 def _pagina(c: dict, request: Request, caminho: str, nome: str) -> dict:
     """O que o `base.html` precisa em toda página: idioma, endereços e cabeçalho."""
     base = _base(c["site"], request)
@@ -309,6 +334,7 @@ def _pagina(c: dict, request: Request, caminho: str, nome: str) -> dict:
                           "href": (prefixo(i) + caminho) + c["sufixo"], "lang": site_i18n.HTML_LANG[i]}
                          for i in idiomas] if len(idiomas) > 1 else [],
         "logo": _midia(c["site"]["logo_id"], c["previa"], 480) if c["site"].get("logo_id") else None,
+        "icones": _icones(c, nome),
         "whatsapp_link": sites.link_whatsapp(whats, sites.mensagem_whatsapp(None, None, None, None, c["idioma"])) if whats else None,
     }
 
@@ -353,6 +379,7 @@ async def inicio(request: Request):
         capa=_img(capa, c["previa"], "100vw", 1600),
         og_imagem=f"{pag['base']}{_midia(capa, None, f='jpg')}" if capa else None,
         sobre=[p.strip() for p in (st.get("sobre") or "").split("\n\n") if p.strip()],
+        local=" – ".join(x for x in (site.get("cidade"), site.get("uf")) if x) or None,
         depoimentos=st.get("depoimentos") or [], faq=faq, **_comum(c, config),
         jsonld=_jsonld([j for j in (_org(c, nome, pag["base"], capa), _faq_jsonld(faq, c["idioma"])) if j]),
     )
@@ -522,6 +549,28 @@ async def midia(media_id: str, request: Request):
         "X-Content-Type-Options": "nosniff",
         "Content-Security-Policy": "sandbox",
     })
+
+
+@router.get("/_site/favicon.ico", include_in_schema=False)
+async def favicon(request: Request):
+    """O endereço que o navegador e o buscador pedem sem ler a página.
+
+    Sai o logo em PNG de 48 (o navegador lê pelo conteúdo, não pela
+    extensão). Sem logo, 404, e a página continua com a inicial do `<link>`.
+    """
+    try:
+        c = await _contexto(request)
+    except _Redirecionar as r:
+        return RedirectResponse(r.url, status_code=301)
+    except _Nao:
+        return Response(status_code=404)
+    mid = c["site"].get("logo_id")
+    doc = await sites.midia_publica(c["db"], c["site"], mid) if mid else None
+    leve = await imagens_site.variante(doc, imagens_site.ICONE_PADRAO, "png") if doc and not doc.get("purged_at") else None
+    if not leve:
+        return Response(status_code=404)
+    return FileResponse(leve[0], media_type=leve[1], headers={"Cache-Control": "public, max-age=86400",
+                                                              "X-Content-Type-Options": "nosniff"})
 
 
 @router.get("/_site/robots.txt", include_in_schema=False)

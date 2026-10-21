@@ -14,7 +14,7 @@ CSS não conhece deixaria a tela sem cor nenhuma de marca.
 """
 
 PALETA_PADRAO = "oficial"
-PALETAS = ("oficial", "lagoa", "duna", "sol", "mangue", "azulejo", "caju")
+PALETAS = ("oficial", "sol", "azulejo")
 MODOS = ("claro", "escuro", "sistema")
 
 

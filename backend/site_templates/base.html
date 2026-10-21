@@ -17,6 +17,9 @@
 {% if og_imagem %}<meta property="og:image" content="{{ og_imagem }}">{% endif %}
 <meta property="og:locale" content="{{ og_locale or 'pt_BR' }}">
 <meta name="theme-color" content="{{ paleta.brand }}">
+{% if icones and icones.svg %}<link rel="icon" type="image/svg+xml" href="{{ icones.svg }}">
+{% elif icones %}{% for i in icones.png %}<link rel="icon" type="image/png" sizes="{{ i.lado }}x{{ i.lado }}" href="{{ i.href }}">
+{% endfor %}<link rel="apple-touch-icon" href="{{ icones.apple }}">{% endif %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family={{ paleta.fontes }}&display=swap">
@@ -32,7 +35,11 @@
     --raio: 14px; --largura: 1120px;
   }
   * { box-sizing: border-box; }
-  html { -webkit-text-size-adjust: 100%; }
+  /* Rolagem suave nos links internos ("Ver passeios", "Escolher data"), com
+     folga do topo fixo para o título do destino não ficar embaixo dele. Quem
+     pediu menos movimento no sistema continua com o salto direto. */
+  html { -webkit-text-size-adjust: 100%; scroll-padding-top: 80px; }
+  @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
   body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--corpo);
          font-size: 17px; line-height: 1.6; }
   img { max-width: 100%; display: block; }
@@ -46,8 +53,9 @@
   .container { width: 100%; max-width: var(--largura); margin: 0 auto; padding: 0 16px; }
   .previa { background: #6B4E00; color: #FFF8E1; text-align: center; padding: 8px 16px;
             font-size: 14px; font-weight: 600; }
-  header.topo { background: var(--surface); border-bottom: 1px solid var(--line);
-                position: sticky; top: 0; z-index: 10; }
+  header.topo { background: color-mix(in srgb, var(--surface) 88%, transparent); border-bottom: 1px solid var(--line);
+                position: sticky; top: 0; z-index: 10;
+                -webkit-backdrop-filter: saturate(1.4) blur(12px); backdrop-filter: saturate(1.4) blur(12px); }
   header.topo .container { display: flex; align-items: center; justify-content: space-between;
                            gap: 12px; min-height: 64px; }
   .marca { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); min-width: 0;
@@ -64,14 +72,23 @@
   .btn-sm { padding: 8px 16px; min-height: 40px; font-size: 15px; }
   .btn svg { width: 20px; height: 20px; flex: none; }
   section { padding: 56px 0; }
-  .secao-titulo { margin-bottom: 24px; }
+  .secao-titulo { margin-bottom: 28px; }
+  .secao-titulo h2::before { content: ""; display: block; width: 44px; height: 4px; border-radius: 4px;
+                             background: linear-gradient(90deg, var(--brand), #F5B841); margin-bottom: 14px; }
   .secao-titulo p { color: var(--text-2); margin: 0; }
   .grade { display: grid; gap: 20px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
   .cartao { background: var(--surface); border: 1px solid var(--line); border-radius: var(--raio);
             overflow: hidden; display: flex; flex-direction: column; text-decoration: none;
             color: inherit; transition: box-shadow .2s, transform .2s; }
-  .cartao:hover { box-shadow: 0 10px 30px rgba(0,0,0,.08); transform: translateY(-2px); }
-  .cartao .foto { aspect-ratio: 4 / 3; background: var(--brand-soft); object-fit: cover; width: 100%; }
+  .cartao:hover { box-shadow: 0 18px 40px rgba(0,0,0,.12); transform: translateY(-4px); }
+  .cartao .foto { aspect-ratio: 4 / 3; background: var(--brand-soft); object-fit: cover; width: 100%;
+                  transition: transform .5s cubic-bezier(.2,.7,.2,1); }
+  .cartao:hover .moldura .foto { transform: scale(1.05); }
+  .cartao .moldura { position: relative; overflow: hidden; }
+  .cartao .etiqueta-preco { position: absolute; left: 12px; bottom: 12px; background: var(--surface); color: var(--text);
+                            border-radius: 999px; padding: 6px 12px; font-weight: 700; font-size: 15px;
+                            box-shadow: 0 4px 14px rgba(0,0,0,.16); }
+  .cartao .etiqueta-preco small { font-weight: 500; color: var(--text-3); }
   .cartao .foto-vazia { aspect-ratio: 4 / 3; background: var(--brand-soft); display: flex;
                         align-items: center; justify-content: center; color: var(--tinta);
                         font-family: var(--titulo); font-size: 1.4rem; padding: 16px; text-align: center; }
@@ -81,12 +98,46 @@
   .preco { font-weight: 700; color: var(--text); }
   .preco small { font-weight: 500; color: var(--text-3); }
   .cartao .mais { margin-top: auto; padding-top: 8px; color: var(--tinta); font-weight: 600; }
-  footer.rodape { border-top: 1px solid var(--line); background: var(--surface); padding: 32px 0;
-                  color: var(--text-2); font-size: 15px; }
+  /* Rodapé escuro: fecha a página com peso. Fundo é o texto da paleta, que é
+     escuro em todas (contraste ≥ 7:1 contra o fundo claro), e o texto é branco. */
+  footer.rodape { background: var(--text); padding: 40px 0; color: rgba(255,255,255,.78); font-size: 15px; }
   footer.rodape .container { display: flex; flex-wrap: wrap; gap: 16px 32px; justify-content: space-between; }
-  footer.rodape a { color: var(--text-2); }
-  .zap-flutuante { position: fixed; right: 16px; bottom: 16px; z-index: 20;
-                   box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+  footer.rodape strong { color: #FFFFFF; font-family: var(--titulo); font-size: 1.15rem; display: block; margin-bottom: 4px; }
+  footer.rodape a { color: rgba(255,255,255,.9); }
+  footer.rodape a:hover { color: #FFFFFF; }
+  /* Botões flutuantes no canto: o idioma em cima, o WhatsApp embaixo. O
+     idioma é um <details>, então abre e fecha sem script; o script só fecha
+     ao clicar fora e no Esc. As opções sobem acima do botão. */
+  .flutuantes { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 20;
+                display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
+  .flutuante { width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+               box-shadow: 0 8px 24px rgba(0,0,0,.2); text-decoration: none; cursor: pointer;
+               transition: transform .2s, box-shadow .2s; }
+  .flutuante:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(0,0,0,.24); }
+  .flutuante.zap { background: var(--zap); color: var(--zap-fg); }
+  .flutuante.zap svg { width: 30px; height: 30px; }
+  .idioma-flutuante { position: relative; }
+  .idioma-flutuante summary { list-style: none; background: var(--surface); color: var(--text);
+                              border: 1px solid var(--line); flex-direction: column; gap: 0;
+                              font-size: 11px; font-weight: 700; letter-spacing: .04em; line-height: 1; }
+  .idioma-flutuante summary::-webkit-details-marker { display: none; }
+  .idioma-flutuante summary svg { width: 22px; height: 22px; margin-bottom: 2px; }
+  .idioma-flutuante[open] summary { background: var(--brand); color: var(--brand-fg); border-color: var(--brand); }
+  .idioma-flutuante .opcoes { position: absolute; right: 0; bottom: calc(100% + 10px); display: flex; flex-direction: column;
+                              gap: 4px; padding: 6px; min-width: 168px; background: var(--surface);
+                              border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 12px 32px rgba(0,0,0,.18);
+                              transform-origin: bottom right; }
+  .idioma-flutuante .opcoes a { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+                                padding: 10px 12px; border-radius: 10px; color: var(--text); text-decoration: none;
+                                font-weight: 600; font-size: 15px; }
+  .idioma-flutuante .opcoes a small { color: var(--text-3); font-size: 12px; font-weight: 700; }
+  .idioma-flutuante .opcoes a:hover { background: var(--surface-2); }
+  .idioma-flutuante .opcoes a.ativo { background: var(--brand-soft); }
+  @media (prefers-reduced-motion: no-preference) {
+    .idioma-flutuante[open] .opcoes { animation: abrir-idioma .18s cubic-bezier(.2,.7,.2,1); }
+  }
+  @keyframes abrir-idioma { from { opacity: 0; transform: translateY(8px) scale(.96); } to { opacity: 1; transform: none; } }
+  footer.rodape { padding-bottom: 96px; }
   /* Fase 3.1: blocos de conteúdo, os mesmos nas duas páginas. */
   .secao-clara { background: var(--surface); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
   .estrelas { color: #F5B841; letter-spacing: 1px; }
@@ -129,10 +180,6 @@
   .cartao-info ul { margin: 0; padding-left: 20px; }
   .cartao-info p:last-child { margin-bottom: 0; }
   .topo-direita { display: flex; align-items: center; gap: 12px; flex: none; }
-  .idiomas { display: flex; gap: 2px; font-size: 14px; font-weight: 600; }
-  .idiomas a { color: var(--text-3); text-decoration: none; padding: 6px 8px; border-radius: 8px; }
-  .idiomas a:hover { color: var(--text); background: var(--surface-2); }
-  .idiomas a.ativo { color: var(--text); background: var(--brand-soft); }
   @media (max-width: 640px) {
     section { padding: 40px 0; }
     .so-largo { display: none; }
@@ -149,11 +196,6 @@
       <span>{{ nome }}</span>
     </a>
     <div class="topo-direita">
-      {% if menu_idiomas %}
-      <nav class="idiomas" aria-label="{{ t.idioma }}">
-        {% for i in menu_idiomas %}<a href="{{ i.href }}" hreflang="{{ i.lang }}" lang="{{ i.lang }}" title="{{ i.nome }}"{% if i.ativo %} class="ativo" aria-current="true"{% endif %}>{{ i.curto }}</a>{% endfor %}
-      </nav>
-      {% endif %}
       {% if whatsapp_link %}
       <a class="btn btn-zap btn-sm" href="{{ whatsapp_link }}" data-clique data-passeio="" aria-label="{{ t.fale_conosco_aria }}">
         {% include "_icone_zap.html" %}<span class="so-largo">{{ t.fale_conosco }}</span>
@@ -178,6 +220,24 @@
     </div>
   </div>
 </footer>
+{% if menu_idiomas or whatsapp_link %}
+<div class="flutuantes">
+  {% if menu_idiomas %}
+  <details class="idioma-flutuante">
+    <summary class="flutuante" aria-label="{{ t.idioma }}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></svg>
+      {% for i in menu_idiomas if i.ativo %}<span>{{ i.curto }}</span>{% endfor %}
+    </summary>
+    <nav class="opcoes" aria-label="{{ t.idioma }}">
+      {% for i in menu_idiomas %}<a href="{{ i.href }}" hreflang="{{ i.lang }}" lang="{{ i.lang }}"{% if i.ativo %} class="ativo" aria-current="true"{% endif %}>{{ i.nome }} <small>{{ i.curto }}</small></a>{% endfor %}
+    </nav>
+  </details>
+  {% endif %}
+  {% if whatsapp_link %}
+  <a class="flutuante zap" href="{{ whatsapp_link }}" data-clique data-passeio="" aria-label="{{ t.fale_conosco_aria }}">{% include "_icone_zap.html" %}</a>
+  {% endif %}
+</div>
+{% endif %}
 <script nonce="{{ nonce }}">
   // O botão leva ao WhatsApp com a mensagem pronta e o código do site. O link
   // do próprio <a> já funciona sem script (sem o código); com script, o código
@@ -210,6 +270,14 @@
       }
       sair(dados, a.getAttribute("href"));
     });
+    // O seletor de idioma flutuante fecha ao clicar fora dele e no Esc.
+    var idioma = document.querySelector(".idioma-flutuante");
+    if (idioma) {
+      document.addEventListener("click", function (e) { if (idioma.open && !idioma.contains(e.target)) idioma.open = false; });
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" && idioma.open) { idioma.open = false; idioma.querySelector("summary").focus(); }
+      });
+    }
   })();
 </script>
 </body>

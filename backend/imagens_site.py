@@ -35,7 +35,14 @@ logger = logging.getLogger("turismo.imagens_site")
 LARGURAS = (480, 960, 1600)
 LARGURA_PADRAO = 1600
 LARGURA_PREVIA = 1200
-FORMATOS = {"webp": ("WEBP", "image/webp"), "jpg": ("JPEG", "image/jpeg")}
+# Ícone da aba (favicon): PNG quadrado. 48 é o mínimo que o Google aceita para
+# mostrar o ícone no resultado da busca; 180 é o da tela inicial do iPhone
+# (sobre branco, porque o iOS pinta de preto o que for transparente); 192 é o
+# do Android. Saem do logo, e só quando alguém pede.
+ICONES = (48, 180, 192)
+ICONE_PADRAO = 48
+ICONE_OPACO = 180
+FORMATOS = {"webp": ("WEBP", "image/webp"), "jpg": ("JPEG", "image/jpeg"), "png": ("PNG", "image/png")}
 QUALIDADE = {"webp": 80, "jpg": 82}
 
 
@@ -54,6 +61,8 @@ def pedido_valido(largura: int | None, formato: str | None) -> tuple[int, str]:
     pedir mil larguras da mesma foto e encher o disco de variantes.
     """
     formato = formato if formato in FORMATOS else "webp"
+    if formato == "png":
+        return (largura if largura in ICONES else ICONE_PADRAO), "png"
     if formato == "jpg":
         return LARGURA_PREVIA, "jpg"
     if largura not in LARGURAS:
@@ -70,7 +79,9 @@ def gerar(doc: dict, largura: int, formato: str) -> Path | None:
     try:
         with Image.open(original) as im:
             im = ImageOps.exif_transpose(im)   # foto de celular "deitada"
-            if formato == "jpg":
+            if formato == "png":
+                im = _quadrado(im, largura, opaco=largura == ICONE_OPACO)
+            elif formato == "jpg":
                 if im.mode != "RGB":
                     # JPEG não tem transparência: o logo PNG transparente vai sobre branco.
                     rgba = im.convert("RGBA")
@@ -86,13 +97,29 @@ def gerar(doc: dict, largura: int, formato: str) -> Path | None:
             fd, tmp = tempfile.mkstemp(dir=destino.parent, suffix=".tmp")
             os.close(fd)
             # Sem `exif=`: a versão nova sai sem metadado nenhum do original.
-            extra = {"method": 4} if formato == "webp" else {"optimize": True, "progressive": True}
-            im.save(tmp, FORMATOS[formato][0], quality=QUALIDADE[formato], **extra)
+            if formato == "png":
+                im.save(tmp, "PNG", optimize=True)
+            else:
+                extra = {"method": 4} if formato == "webp" else {"optimize": True, "progressive": True}
+                im.save(tmp, FORMATOS[formato][0], quality=QUALIDADE[formato], **extra)
             os.replace(tmp, destino)
             return destino
     except Exception as e:  # imagem corrompida, formato que o Pillow não abre, bomba de pixels
         logger.warning("Não consegui gerar variante %s de %s: %s", f"{largura}.{formato}", doc.get("id"), e)
         return None
+
+
+def _quadrado(im: Image.Image, lado: int, opaco: bool) -> Image.Image:
+    """A imagem inteira dentro de um quadrado, centrada, sem cortar.
+
+    Logo de agência costuma ser largo; cortar para quadrado tiraria metade do
+    nome. Encaixar deixa faixa nas bordas, que fica transparente (ou branca no
+    ícone do iPhone)."""
+    im = im.convert("RGBA")
+    im.thumbnail((lado, lado), Image.LANCZOS)
+    fundo = Image.new("RGBA", (lado, lado), (255, 255, 255, 255 if opaco else 0))
+    fundo.paste(im, ((lado - im.width) // 2, (lado - im.height) // 2), im)
+    return fundo.convert("RGB") if opaco else fundo
 
 
 async def variante(doc: dict, largura: int | None = None, formato: str | None = None) -> tuple[Path, str] | None:
@@ -116,3 +143,5 @@ def apagar(doc: dict) -> None:
     for l in LARGURAS:
         caminho(doc, l, "webp").unlink(missing_ok=True)
     caminho(doc, LARGURA_PREVIA, "jpg").unlink(missing_ok=True)
+    for l in ICONES:
+        caminho(doc, l, "png").unlink(missing_ok=True)
