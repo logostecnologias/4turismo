@@ -12,8 +12,8 @@ import { CamposSitePasseio, camposSite, problemaSite } from "@/components/site/c
 // Passeios, guias e veículos: o cadastro que as Saídas inteiras consultam.
 //
 // A grade de saídas fica no **passeio** (ver `Servicos`). Guias e veículos
-// (`Profissionais`, aba "Equipe e veículos") não têm grade: são escalados em
-// cada saída. A agência entra por cima com os feriados (aba Configuração), que
+// (`Profissionais`, página Equipe e veículos) não têm grade: são escalados em
+// cada saída. A agência entra por cima com os feriados (página Reservas e embarque), que
 // fecham todas as saídas de uma vez.
 
 // ---------------------------------------------------------------------------

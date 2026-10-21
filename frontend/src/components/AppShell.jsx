@@ -8,6 +8,7 @@ import {
   House, CalendarBlank, ChatCircle, ChatsCircle, FlowArrow, Sparkle, User,
   FileText, CheckCircle, ChartBar, WhatsappLogo, SquaresFour, Users,
   Gear, Buildings, CreditCard, ChartLine, SignOut, ArrowUUpLeft, Globe,
+  MapTrifold, Van, SlidersHorizontal,
 } from "@phosphor-icons/react";
 
 // A barra lateral e uma lista de grupos, nao uma lista de itens: com 15 telas
@@ -28,16 +29,27 @@ function tenantNav(role) {
   // `testid` guarda o identificador antigo onde o rotulo mudou para o
   // vocabulario de clinica (08/10/2026): o data-testid saia do rotulo, e
   // trocar o texto nao pode quebrar quem localiza o item por ele.
+  // Fora do bloco de admin de proposito: quem atende o telefone marca,
+  // remarca e cancela o dia inteiro.
+  const saidas = { to: "/app/agenda", icon: CalendarBlank, label: "Saídas", testid: "agenda" };
   const atendimento = {
     titulo: "Atendimento",
     itens: [
-      // Primeiro da lista: o dia de uma clinica gira em torno da agenda.
-      // Fora do bloco de admin de proposito: quem atende o telefone marca,
-      // remarca e cancela o dia inteiro. So a configuracao (procedimentos,
-      // grade, feriados) e restrita, e isso e decidido dentro da propria tela.
-      { to: "/app/agenda", icon: CalendarBlank, label: "Saídas", testid: "agenda" },
       { to: "/app/inbox", icon: ChatCircle, label: "Atendimento" },
       { to: "/app/atendimento", icon: ChatsCircle, label: "Conversas" },
+    ],
+  };
+  // O que a agencia vende e como opera. Passeios, equipe e regras eram abas
+  // escondidas dentro de Saidas (21/10/2026): a agencia so descobria que tinha
+  // de configura-los clicando nelas. Aqui ficam a vista, ao lado das Saidas.
+  const operacao = {
+    titulo: "Passeios",
+    testid: "operacao",
+    itens: [
+      saidas,
+      { to: "/app/passeios", icon: MapTrifold, label: "Passeios", testid: "passeios" },
+      { to: "/app/equipe", icon: Van, label: "Equipe e veículos", testid: "equipe" },
+      { to: "/app/reservas-embarque", icon: SlidersHorizontal, label: "Reservas e embarque", testid: "reservas-embarque" },
     ],
   };
 
@@ -46,10 +58,11 @@ function tenantNav(role) {
   const hoje = { to: "/app", icon: House, label: "Hoje", end: true, testid: "painel" };
 
   // Atendente ve um grupo so, e titulo de grupo unico e ruido: fica sem titulo.
-  if (role !== "tenant_admin") return [{ itens: [hoje, ...atendimento.itens] }];
+  if (role !== "tenant_admin") return [{ itens: [hoje, saidas, ...atendimento.itens] }];
 
   return [
     { itens: [hoje] },
+    operacao,
     atendimento,
     {
       titulo: "Automação",

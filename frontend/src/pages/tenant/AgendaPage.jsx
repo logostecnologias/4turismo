@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
   CaretLeft, CaretRight, Plus, Robot, Sparkle, User, CalendarBlank, Check, CheckCircle,
@@ -12,8 +12,6 @@ import { useAuth } from "@/context/AuthContext";
 import { useAcao } from "@/hooks/useAcao";
 import Modal from "@/components/ui/Modal";
 import NovoAgendamento, { Contador } from "@/components/agenda/NovoAgendamento";
-import { Servicos, Profissionais } from "@/components/agenda/Catalogo";
-import Configuracao from "@/components/agenda/Configuracao";
 import {
   CamposEmbarque, corpoEmbarque, embarqueDe, problemaEmbarque,
 } from "@/components/agenda/Embarque";
@@ -34,13 +32,14 @@ import {
 //
 // **Todo mundo da equipe vê as saídas inteiras.** Configurar (passeios, grade,
 // feriados) é do admin, pela mesma regra do resto do CRM.
-
-const ABAS_BASE = [["agenda", "Saídas"]];
-// O id `profissionais` é o da aba de guias de antes da fase 1, e continua o
-// mesmo para `?aba=profissionais` (e o `data-testid`) seguirem valendo.
-const ABAS_ADMIN = [
-  ["servicos", "Passeios"], ["profissionais", "Equipe e veículos"], ["config", "Configuração"],
-];
+//
+// Passeios, Equipe e veículos e Reservas e embarque eram abas desta tela até
+// 21/10/2026, e a agência só descobria que tinha de configurá-los ao clicar
+// nelas. Viraram páginas próprias na barra lateral; os links antigos com
+// `?aba=` são redirecionados para elas.
+const ABA_ANTIGA = {
+  servicos: "/app/passeios", profissionais: "/app/equipe", config: "/app/reservas-embarque",
+};
 
 // Sugestões rápidas de motivo ao cancelar uma saída inteira.
 const MOTIVOS_CANCELAMENTO = ["Chuva forte", "Maré alta", "Lagoas secas", "Problema no veículo"];
@@ -58,16 +57,10 @@ function temSaida(s) {
 export default function AgendaPage() {
   const { user } = useAuth();
   const admin = user?.role === "tenant_admin";
-  // `?aba=servicos` abre direto no cadastro de passeios: é por onde chega quem
-  // ligou "reservar nas Saídas" no treino do assistente sem passeio nenhum.
-  // `?aba=profissionais` abre Equipe e veículos. Aba de admin pedida por quem
-  // não é admin é ignorada. `?dia=` abre a grade naquele dia (é por onde a
-  // lista de embarque volta).
+  // `?dia=` abre a grade naquele dia (é por onde a lista de embarque volta).
+  const navigate = useNavigate();
   const [params] = useSearchParams();
-  const [aba, setAba] = useState(() => {
-    const pedida = params.get("aba");
-    return admin && ABAS_ADMIN.some(([id]) => id === pedida) ? pedida : "agenda";
-  });
+  const abaAntiga = admin ? ABA_ANTIGA[params.get("aba")] : null;
   const diaPedido = /^\d{4}-\d{2}-\d{2}$/.test(params.get("dia") || "") ? params.get("dia") : null;
   const [config, setConfig] = useState(null);
   const [servicos, setServicos] = useState([]);
@@ -82,9 +75,10 @@ export default function AgendaPage() {
 
   useEffect(() => { carregarCatalogo(); }, [carregarCatalogo]);
 
-  const abas = admin ? [...ABAS_BASE, ...ABAS_ADMIN] : ABAS_BASE;
   const ativos = servicos.filter((s) => s.ativo !== false);
   const pronto = ativos.some(temSaida);
+
+  if (abaAntiga) return <Navigate to={abaAntiga} replace />;
 
   if (!config) {
     return <div className="zz-page text-sm text-ink-3">Carregando saídas…</div>;
@@ -100,42 +94,17 @@ export default function AgendaPage() {
             atendimento, pelo fluxo automático do WhatsApp ou pelo assistente de IA.
           </p>
         </div>
-        {aba === "agenda" && (
-          <button type="button" className="zz-btn" data-testid="novo-agendamento-btn" disabled={!pronto}
-            title={pronto ? "" : "Cadastre ao menos um passeio com saídas"}
-            onClick={() => setCriando({})}>
-            <Plus size={14} weight="regular" /> Nova reserva
-          </button>
-        )}
+        <button type="button" className="zz-btn" data-testid="novo-agendamento-btn" disabled={!pronto}
+          title={pronto ? "" : "Cadastre ao menos um passeio com saídas"}
+          onClick={() => setCriando({})}>
+          <Plus size={14} weight="regular" /> Nova reserva
+        </button>
       </div>
 
-      <div className="flex gap-1 border-b border-line mb-6 overflow-x-auto">
-        {abas.map(([id, label]) => (
-          <button key={id} type="button" onClick={() => setAba(id)} data-testid={`aba-${id}`}
-            className={`px-4 py-2.5 text-sm font-semibold whitespace-nowrap border-b-2 -mb-px transition-colors ${
-              aba === id
-                ? "border-info text-info"
-                : "border-transparent text-ink-3 hover:text-ink"}`}>
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {aba === "agenda" && (
-        <Quadro config={config} servicos={ativos} pronto={pronto} admin={admin}
-          recursos={recursos} diaInicial={diaPedido}
-          onNovaReserva={(inicial) => setCriando(inicial || {})}
-          onCadastrar={admin ? () => setAba("servicos") : null} />
-      )}
-      {aba === "servicos" && (
-        <Servicos servicos={servicos} onMudou={carregarCatalogo} />
-      )}
-      {aba === "profissionais" && (
-        <Profissionais recursos={recursos} onMudou={carregarCatalogo} />
-      )}
-      {aba === "config" && (
-        <Configuracao config={config} onSalvo={carregarCatalogo} />
-      )}
+      <Quadro config={config} servicos={ativos} pronto={pronto} admin={admin}
+        recursos={recursos} diaInicial={diaPedido}
+        onNovaReserva={(inicial) => setCriando(inicial || {})}
+        onCadastrar={admin ? () => navigate("/app/passeios") : null} />
 
       {criando && (
         <NovoAgendamento servicos={ativos} fuso={config.fuso} admin={admin} inicial={criando}

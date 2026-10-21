@@ -13,6 +13,9 @@ import FunilPage from "@/pages/tenant/FunilPage";
 import AtividadesPage from "@/pages/tenant/AtividadesPage";
 import AgendaPage from "@/pages/tenant/AgendaPage";
 import ListaEmbarquePage from "@/pages/tenant/ListaEmbarquePage";
+import PasseiosPage from "@/pages/tenant/PasseiosPage";
+import EquipePage from "@/pages/tenant/EquipePage";
+import RegrasReservasPage from "@/pages/tenant/RegrasReservasPage";
 import RelatoriosPage from "@/pages/tenant/RelatoriosPage";
 import InboxPage from "@/pages/tenant/InboxPage";
 import WhatsAppPage from "@/pages/tenant/WhatsAppPage";
@@ -76,6 +79,9 @@ function App() {
             <Route path="relatorios" element={<ProtectedRoute roles={ADMIN_ONLY}><RelatoriosPage /></ProtectedRoute>} />
             <Route path="agenda" element={<AgendaPage />} />
             <Route path="agenda/embarque" element={<ListaEmbarquePage />} />
+            <Route path="passeios" element={<ProtectedRoute roles={ADMIN_ONLY}><PasseiosPage /></ProtectedRoute>} />
+            <Route path="equipe" element={<ProtectedRoute roles={ADMIN_ONLY}><EquipePage /></ProtectedRoute>} />
+            <Route path="reservas-embarque" element={<ProtectedRoute roles={ADMIN_ONLY}><RegrasReservasPage /></ProtectedRoute>} />
             <Route path="inbox" element={<InboxPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>

@@ -718,7 +718,7 @@ export default function TreinarAgente({ agente, onFechar, onMudou, onTestar }) {
                 erroApi(ex);
                 return;
               }
-              navigate("/app/agenda?aba=servicos");
+              navigate("/app/passeios");
             }}
           >
             <p className="text-sm text-ink-2">

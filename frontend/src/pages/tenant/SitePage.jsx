@@ -960,8 +960,8 @@ function Politicas({ dados, form, setForm }) {
             Mostrar “Buscamos você na hospedagem”
             <span className="block text-[11px] text-ink-3">
               Lista no site os pontos de embarque já cadastrados em{" "}
-              <Link to="/app/agenda?aba=config" className="text-brand underline" data-testid="site-link-pontos">
-                Saídas → Configuração
+              <Link to="/app/reservas-embarque" className="text-brand underline" data-testid="site-link-pontos">
+                Reservas e embarque
               </Link>
               , com a antecedência da busca. Sem nenhum ponto ativo, a seção não aparece.
             </span>
@@ -1404,7 +1404,7 @@ function PasseiosNoSite({ servicos, onMudou, urlSite, publicado }) {
       {ativos.length === 0 ? (
         <div className="border border-dashed border-line rounded-xl p-8 text-center text-sm text-ink-3">
           Nenhum passeio ativo.{" "}
-          <Link to="/app/agenda?aba=servicos" className="text-brand underline">Cadastrar passeio</Link>
+          <Link to="/app/passeios" className="text-brand underline">Cadastrar passeio</Link>
         </div>
       ) : (
         <div className="divide-y divide-line border border-line rounded-lg">
@@ -1460,7 +1460,7 @@ function PasseiosNoSite({ servicos, onMudou, urlSite, publicado }) {
           descricao="Preço, horários e lugares continuam no cadastro do passeio, nas Saídas."
           onFechar={() => setEditando(null)} onSalvar={salvar}
           rodape={(
-            <Link to="/app/agenda?aba=servicos" className="zz-btn zz-btn-secondary mr-auto"
+            <Link to="/app/passeios" className="zz-btn zz-btn-secondary mr-auto"
               data-testid="site-passeio-cadastro-completo">
               Cadastro completo
             </Link>
