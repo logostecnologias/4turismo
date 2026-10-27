@@ -3,7 +3,7 @@
 {% if perguntas %}
 <div class="faq">
   {% for q in perguntas %}
-  <details{% if loop.first and abrir_primeira %} open{% endif %}>
+  <details data-4t="faq" data-4t-detalhe="{{ q.pergunta[:80] }}"{% if loop.first and abrir_primeira %} open{% endif %}>
     <summary>{{ q.pergunta }}</summary>
     {% for par in q.resposta.split("\n") if par.strip() %}<p>{{ par }}</p>{% endfor %}
   </details>

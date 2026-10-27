@@ -197,6 +197,7 @@ COLECOES_DA_EMPRESA = (
     # O site público da agência e os cliques do botão (`sites.py`).
     "sites",
     "site_cliques",
+    "site_eventos",
     "site_paginas",
     "site_traducoes",
     "resources",

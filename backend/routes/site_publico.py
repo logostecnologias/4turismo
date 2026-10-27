@@ -30,6 +30,7 @@ import site_i18n
 import site_traducao
 import media_store
 import saidas
+import site_metricas
 import sites
 from db import get_db
 
@@ -146,7 +147,7 @@ def _img(mid: str | None, previa: str | None, sizes: str, padrao: int = 960) -> 
 def _cartao(p: dict, c: dict) -> dict:
     fotos = p.get("site_fotos") or []
     return {
-        "nome": p["nome"],
+        "nome": p["nome"], "slug": p.get("site_slug"),
         "url": f"{c['pref']}/passeio/{p.get('site_slug')}{c['sufixo']}",
         "resumo": p.get("site_resumo") or (p.get("descricao") or "")[:160] or None,
         "foto": _img(fotos[0] if fotos else None, c["previa"], "(max-width: 640px) 100vw, 360px", 480),
@@ -157,7 +158,7 @@ def _cartao(p: dict, c: dict) -> dict:
 
 
 def _cartao_guia(g: dict, c: dict) -> dict:
-    return {"titulo": g["titulo"], "resumo": g.get("resumo"),
+    return {"titulo": g["titulo"], "resumo": g.get("resumo"), "slug": g["slug"],
             "url": f"{c['pref']}/guia/{g['slug']}{c['sufixo']}",
             "capa": _img(g.get("capa_id"), c["previa"], "(max-width: 640px) 100vw, 360px", 480),
             "minutos": site_guias.minutos_de_leitura(g.get("corpo"))}
@@ -635,6 +636,9 @@ class CliqueIn(BaseModel):
     pagina: str | None = Field(default=None, max_length=200)
     referencia: str | None = Field(default=None, max_length=300)
     idioma: str | None = Field(default=None, max_length=5)   # "en", "es"; vem do <html lang>
+    # De onde veio a visita (utm, domínio de quem indicou), guardado pelo
+    # script na primeira página. Ver `site_metricas.classificar_origem`.
+    origem: dict | None = None
 
 
 def _ip(request: Request) -> str:
@@ -672,7 +676,43 @@ async def registrar_clique(body: CliqueIn, request: Request):
             site["whatsapp"], sites.mensagem_whatsapp(passeio, None, None, None, idioma))}
     return await sites.registrar_clique(db, site, passeio=passeio, dia=body.dia,
                                         adultos=body.adultos, criancas=body.criancas,
-                                        pagina=body.pagina, referencia=body.referencia, idioma=idioma)
+                                        pagina=body.pagina, referencia=body.referencia, idioma=idioma,
+                                        origem=body.origem)
+
+
+# Maior que qualquer evento legítimo (tipo, alvo, página, origem), pequeno o
+# bastante para ninguém usar o endpoint de depósito.
+MAX_CORPO_EVENTO = 4096
+
+
+@router.post("/api/publico/evento", include_in_schema=False)
+async def registrar_evento(request: Request):
+    """Visita e clique interno, mandados por `sendBeacon` pelo script da página.
+
+    Sempre 204, gravando ou não: o script não tem o que fazer com um erro, e
+    responder diferente a robô e a limite só ensinaria a contorná-los. O corpo
+    vem como texto (é como o beacon manda), e por isso é lido à mão.
+    """
+    vazio = Response(status_code=204)
+    if int(request.headers.get("content-length") or 0) > MAX_CORPO_EVENTO:
+        return vazio
+    corpo = await request.body()
+    if len(corpo) > MAX_CORPO_EVENTO:
+        return vazio
+    try:
+        dados = json.loads(corpo)
+    except ValueError:
+        return vazio
+    if not isinstance(dados, dict) or request.query_params.get("previa"):
+        return vazio
+    db = get_db()
+    site = await sites.site_por_host(db, request.headers.get("host") or "")
+    # Só site publicado: a agência olhando a prévia não é visita.
+    if not site or not site.get("publicado"):
+        return vazio
+    await site_metricas.registrar(db, site, dados, ip=_ip(request),
+                                  ua=request.headers.get("user-agent") or "")
+    return vazio
 
 
 @router.get("/api/publico/tls-ask")

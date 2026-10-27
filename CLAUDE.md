@@ -198,7 +198,7 @@ O 4turismo nasceu de uma base de atendimento por WhatsApp já existente (multi-t
 - **Nada disto passou por um WhatsApp de verdade**: a atribuição foi exercitada pelo caminho real da mensagem com o envio dublado
 - Reserva e pagamento no próprio site (o site só leva ao WhatsApp, de propósito, nesta fase)
 - Inglês e espanhol no site e no assistente
-- Visitas por página (só cliques são contados), e o funil "visitou → clicou → conversou"
+- ~~Visitas por página (só cliques são contados), e o funil "visitou → clicou → conversou"~~: feitos em 26/10/2026, ver *Desempenho do site*
 - Rota da van e check-in de embarque continuam da fase 2
 - ~~Galeria com legenda por foto, depoimentos, perguntas frequentes, mapa~~: feitos na fase 3.1 (o mapa é link, não mapa embutido)
 
@@ -269,6 +269,22 @@ O 4turismo nasceu de uma base de atendimento por WhatsApp já existente (multi-t
 - Tradução automática disparada ao salvar (hoje é o botão); aviso para a agência de que há texto novo sem tradução além do contador da tela
 - Assistente de IA e bot do WhatsApp respondendo no idioma do turista (o agente já tende a responder na língua em que é perguntado, mas nada foi configurado para isso)
 - Mapa embutido, guias com várias imagens no corpo, autor por guia
+
+---
+
+## Desempenho do site (26/10/2026)
+
+Primeiro pedaço do "hub digital" das agências: medir o site que a plataforma gera, do visitante até a reserva. Os sites externos (feitos pela L4T para os clientes) entram depois, com uma **chave pública de site** e lista de domínios autorizados; a visão de todas as agências juntas também fica para depois.
+
+- **`site_metricas.py`**, coleção `site_eventos` (em `COLECOES_DA_EMPRESA`, TTL de 90 dias em `criado_dt`). Dois tipos: `visita` e `clique` interno. O script do `base.html` manda por `navigator.sendBeacon` para `POST /api/publico/evento` no mesmo host (o beacon sobrevive à saída da página; corpo `text/plain`, lido à mão, até 4 KB, sempre 204). **O host diz a agência**, como no botão; prévia e site despublicado não gravam
+- **Cliques internos são lista fechada** (`site_metricas.ALVOS`): o que o modelo marca com `data-4t`/`data-4t-detalhe` (cartão de passeio e de guia, "Ver passeios", "Escolher data", pergunta frequente aberta, avaliações, mapa, idioma) e o que o script acha sozinho (`tel:`, `mailto:`, Instagram, Google Maps, link para outro domínio). Nome fora da lista é descartado: o endpoint é público. Pergunta frequente é medida no `toggle` ao abrir, não no clique
+- **O clique no WhatsApp não é evento**: continua em `site_cliques` (é dele que sai a conversão), e agora grava `fonte`/`campanha`. Contar nos dois lugares abriria espaço para divergir
+- **Origem** (`classificar_origem`): `utm_source` ganha de tudo (com `utm_medium` pago vira "X (anúncio)"), depois `gclid` (Google anúncio), depois o domínio de quem indicou (Instagram, Google, Facebook, ChatGPT…), senão "Direto". O script guarda a origem da **primeira página da visita** em `sessionStorage` (`4t_origem`), porque nas páginas seguintes o referrer é o próprio site; vai só o domínio do referrer
+- **Sem cookie e sem IP gravado**: visitante é HMAC de IP + navegador com o dia (`_visitante`), conta a pessoa uma vez por dia e não a segue de um dia para o outro. Robô por user-agent fica fora; limite de 120 eventos por IP em 10 min, em memória
+- **O funil fecha até a reserva**: reserva conta para o site quando é do contato que chegou pelo código, criada **depois** da conversa, e ocupa lugar (cancelada não conta); receita pelo `preco` gravado. A reserva volta para a origem da visita do clique
+- **Painel** `GET /api/site/desempenho?dias=7|30|90` (só admin), tela **Desempenho do site** (`/app/desempenho-site`, grupo Análise): funil (visitantes → WhatsApp → conversas → orçamentos → reservas), visitantes e cliques por dia (fuso da agência), origens com taxa e receita, páginas pelo nome do passeio/guia, cliques internos com detalhe, campanhas, idioma e aparelho, e um **montador de link com origem** (utm) para bio, anúncio e mensagem. Acima de 300 mil eventos no período, 413
+- Lê o cru na hora, em Python, como os relatórios; não há resumo diário gravado. Consequência: nada além de 90 dias
+- **Não verificado num navegador de verdade**: o script foi exercitado em jsdom (visita, cada tipo de clique, origem guardada, WhatsApp levando a origem) e o caminho servidor pela suíte; o painel compilou, mas não foi aberto com o sistema rodando
 
 ---
 

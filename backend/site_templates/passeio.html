@@ -188,6 +188,6 @@
 {% include "_depoimentos.html" %}
 <div class="barra-reserva">
   <span class="valor">{% if passeio.preco %}{{ passeio.preco }} <small>{{ t.por_adulto }}</small>{% else %}{{ passeio.nome }}{% endif %}</span>
-  <a class="btn btn-zap" href="#reservar">{{ t.escolher_data }}</a>
+  <a class="btn btn-zap" href="#reservar" data-4t="escolher_data">{{ t.escolher_data }}</a>
 </div>
 {% endblock %}

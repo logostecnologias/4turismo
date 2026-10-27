@@ -8,7 +8,7 @@ import {
   House, CalendarBlank, ChatCircle, ChatsCircle, FlowArrow, Sparkle, User,
   FileText, CheckCircle, ChartBar, WhatsappLogo, SquaresFour, Users,
   Gear, Buildings, CreditCard, ChartLine, SignOut, ArrowUUpLeft, Globe,
-  MapTrifold, Van, SlidersHorizontal,
+  MapTrifold, Van, SlidersHorizontal, ChartLineUp,
 } from "@phosphor-icons/react";
 
 // A barra lateral e uma lista de grupos, nao uma lista de itens: com 15 telas
@@ -82,7 +82,10 @@ function tenantNav(role) {
     },
     {
       titulo: "Análise",
-      itens: [{ to: "/app/relatorios", icon: ChartBar, label: "Relatórios" }],
+      itens: [
+        { to: "/app/relatorios", icon: ChartBar, label: "Relatórios" },
+        { to: "/app/desempenho-site", icon: ChartLineUp, label: "Desempenho do site", testid: "desempenho-site" },
+      ],
     },
     {
       titulo: "Configuração",

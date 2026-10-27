@@ -2,7 +2,7 @@
 {% if cartoes_guias %}
 <div class="grade">
   {% for g in cartoes_guias %}
-  <a class="cartao" href="{{ g.url }}">
+  <a class="cartao" href="{{ g.url }}" data-4t="guia" data-4t-detalhe="{{ g.slug }}">
     {% if g.capa %}<img class="foto" src="{{ g.capa.src }}" srcset="{{ g.capa.srcset }}" sizes="{{ g.capa.sizes }}" alt="" loading="lazy">{% endif %}
     <div class="corpo">
       <h3>{{ g.titulo }}</h3>

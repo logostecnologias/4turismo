@@ -16,6 +16,7 @@ import contatos_csv
 import imagens_site
 import site_guias
 import site_i18n
+import site_metricas
 import site_traducao
 import media_store
 import sites
@@ -267,6 +268,16 @@ async def subir_imagem(file: UploadFile = File(...), user=Depends(require_tenant
                                     {"$set": {"uso": "site"}})
     await imagens_site.gerar_todas(doc)
     return {"id": doc["id"], "url": f"/api/media/{doc['id']}"}
+
+
+@router.get("/desempenho")
+async def desempenho(dias: int = 30, user=Depends(require_tenant_admin)):
+    """O painel de desempenho: visitas, cliques e o funil até a reserva. Ver `site_metricas.py`."""
+    try:
+        return await site_metricas.desempenho(get_db(), user["tenant_id"], dias)
+    except site_metricas.MuitoGrande as e:
+        # 413, como nos relatórios: o pedido é válido, o período é que é grande demais.
+        raise HTTPException(status_code=413, detail=str(e))
 
 
 # ---------------------------------------------------------------------------

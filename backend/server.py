@@ -399,6 +399,10 @@ INDEXES: list[tuple[str, list[tuple[str, int]], dict]] = [
     # nativo porque o TTL do Mongo só age sobre Date (mesmo caso do
     # `processed_messages.at`).
     ("site_cliques", [("criado_dt", 1)], {"expireAfterSeconds": 90 * 24 * 3600}),
+    # Visitas e cliques internos do site: o painel lê por empresa e período,
+    # e o cru sai sozinho em 90 dias (ver `site_metricas`).
+    ("site_eventos", [("tenant_id", 1), ("created_at", 1)], {}),
+    ("site_eventos", [("criado_dt", 1)], {"expireAfterSeconds": 90 * 24 * 3600}),
     # Guias: endereço único na agência, e a lista na ordem da tela.
     ("site_paginas", [("tenant_id", 1), ("slug", 1)], {"unique": True}),
     ("site_paginas", [("tenant_id", 1), ("ordem", 1)], {}),

@@ -110,7 +110,7 @@
     {% if site.chamada %}<p class="lead">{{ nome }}</p>{% endif %}
     {% include "_avaliacao.html" %}
     <div class="acoes">
-      {% if passeios %}<a class="btn btn-claro" href="#passeios">{{ t.ver_passeios }}</a>{% endif %}
+      {% if passeios %}<a class="btn btn-claro" href="#passeios" data-4t="ver_passeios">{{ t.ver_passeios }}</a>{% endif %}
       {% if whatsapp_link %}
       <a class="btn btn-zap" href="{{ whatsapp_link }}" data-clique data-passeio="">
         {% include "_icone_zap.html" %}<span>{{ t.falar_whatsapp }}</span>
@@ -136,7 +136,7 @@
     {% if passeios %}
     <div class="grade grade-passeios">
       {% for p in passeios %}
-      <a class="cartao" href="{{ p.url }}">
+      <a class="cartao" href="{{ p.url }}" data-4t="passeio" data-4t-detalhe="{{ p.slug }}">
         <div class="moldura">
           {% if p.foto %}<img class="foto" src="{{ p.foto.src }}" srcset="{{ p.foto.srcset }}" sizes="{{ p.foto.sizes }}" alt="{{ p.nome }}" loading="lazy">
           {% else %}<div class="foto-vazia">{{ p.nome }}</div>{% endif %}
@@ -247,7 +247,7 @@
         <h3>{{ t.onde_estamos }}</h3>
         {% if endereco %}<p>{{ endereco }}</p>{% endif %}
         {% if horario %}<p>{{ t.atendimento }}: {{ horario }}</p>{% endif %}
-        {% if mapa %}<p><a href="{{ mapa }}" target="_blank" rel="noopener">{{ t.ver_mapa }}</a></p>{% endif %}
+        {% if mapa %}<p><a href="{{ mapa }}" target="_blank" rel="noopener" data-4t="mapa">{{ t.ver_mapa }}</a></p>{% endif %}
       </div>
       {% endif %}
       {% if pagamento %}

@@ -1350,6 +1350,11 @@ function Resultados({ metricas }) {
       ) : (
         <p className="text-xs text-ink-3 mt-4">Nenhum clique em passeio no período.</p>
       )}
+      <p className="text-xs mt-4">
+        <Link to="/app/desempenho-site" className="text-brand underline" data-testid="site-ver-desempenho">
+          Ver visitas, origens e reservas no Desempenho do site
+        </Link>
+      </p>
     </Bloco>
   );
 }

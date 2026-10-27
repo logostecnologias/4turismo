@@ -25,6 +25,7 @@ import DepartamentosPage from "@/pages/tenant/DepartamentosPage";
 import UsersPage from "@/pages/tenant/UsersPage";
 import SitePage from "@/pages/tenant/SitePage";
 import GuiasPage from "@/pages/tenant/GuiasPage";
+import DesempenhoSitePage from "@/pages/tenant/DesempenhoSitePage";
 import SuperAdminDashboard from "@/pages/superadmin/SuperAdminDashboard";
 import TenantsPage from "@/pages/superadmin/TenantsPage";
 import PlansPage from "@/pages/superadmin/PlansPage";
@@ -73,6 +74,7 @@ function App() {
             <Route path="users" element={<ProtectedRoute roles={ADMIN_ONLY}><UsersPage /></ProtectedRoute>} />
             <Route path="site" element={<ProtectedRoute roles={ADMIN_ONLY}><SitePage /></ProtectedRoute>} />
             <Route path="site/guias" element={<ProtectedRoute roles={ADMIN_ONLY}><GuiasPage /></ProtectedRoute>} />
+            <Route path="desempenho-site" element={<ProtectedRoute roles={ADMIN_ONLY}><DesempenhoSitePage /></ProtectedRoute>} />
             <Route path="contacts" element={<ProtectedRoute roles={ADMIN_ONLY}><ContactsPage /></ProtectedRoute>} />
             <Route path="funil" element={<ProtectedRoute roles={ADMIN_ONLY}><FunilPage /></ProtectedRoute>} />
             <Route path="atividades" element={<ProtectedRoute roles={ADMIN_ONLY}><AtividadesPage /></ProtectedRoute>} />

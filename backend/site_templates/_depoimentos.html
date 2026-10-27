@@ -18,7 +18,7 @@
     </div>
     {% if t.depoimento_original %}<p class="nota-embarque">{{ t.depoimento_original }}</p>{% endif %}
     {% if avaliacoes and avaliacoes.link %}
-    <p class="mais-link"><a href="{{ avaliacoes.link }}" target="_blank" rel="noopener nofollow">{{ t.ver_avaliacoes.format(fonte=avaliacoes.fonte) }}</a></p>
+    <p class="mais-link"><a href="{{ avaliacoes.link }}" data-4t="avaliacoes" target="_blank" rel="noopener nofollow">{{ t.ver_avaliacoes.format(fonte=avaliacoes.fonte) }}</a></p>
     {% endif %}
   </div>
 </section>

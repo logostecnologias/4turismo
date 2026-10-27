@@ -778,6 +778,103 @@ async def etapa_clique_e_atribuicao(ctx):
                                         for p in m["por_passeio"]), m["por_passeio"])
 
 
+NAVEGADOR = {"user-agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile/15E148 Safari/604.1"}
+
+
+async def etapa_desempenho(ctx):
+    """Visita e clique interno pelo endpoint público, e o painel fechando o
+    funil até a reserva, por origem."""
+    _conectar_fake()
+    import site_metricas
+    site_metricas._eventos_por_ip.clear()
+    c = cliente("lencois-receptivo.localhost:8010")
+    insta = {"ref": "l.instagram.com"}
+
+    def evento(corpo, headers=NAVEGADOR, host=c):
+        return host.post("/api/publico/evento", content=__import__("json").dumps(corpo),
+                         headers={**headers, "content-type": "text/plain;charset=UTF-8"})
+
+    r = evento({"tipo": "visita", "pagina": "/en/passeio/lagoa-azul", "origem": insta})
+    check("o evento responde 204", r.status_code == 204, r.status_code)
+    e = await DB.site_eventos.find_one({"tenant_id": TENANT, "tipo": "visita"})
+    check("a visita é gravada sem o prefixo de idioma, com o idioma e a origem à parte",
+          e and e["pagina"] == "/passeio/lagoa-azul" and e["idioma"] == "en"
+          and e["fonte"] == "Instagram" and e["dispositivo"] == "celular", e)
+    check("e sem IP nem navegador gravados", "ip" not in e and "ua" not in e
+          and len(e["visitante"]) == 16)
+    evento({"tipo": "visita", "pagina": "/", "origem": insta})
+    evento({"tipo": "visita", "pagina": "/", "origem": {"ref": "www.google.com.br"}},
+           headers={"user-agent": "Mozilla/5.0 (Windows NT 10.0) Chrome/130"})
+    evento({"tipo": "visita", "pagina": "/"}, headers={"user-agent": "Googlebot/2.1"})
+    check("robô não conta como visita",
+          await DB.site_eventos.count_documents({"tenant_id": TENANT, "tipo": "visita"}) == 3)
+    evento({"tipo": "clique", "alvo": "faq", "detalhe": "Pode levar criança?", "pagina": "/"})
+    evento({"tipo": "clique", "alvo": "qualquer-coisa", "pagina": "/"})
+    evento({"tipo": "clique", "alvo": "passeio", "detalhe": "lagoa-azul", "pagina": "/"})
+    check("clique interno fora da lista é descartado",
+          await DB.site_eventos.count_documents({"tenant_id": TENANT, "tipo": "clique"}) == 2)
+    check("corpo que não é JSON responde 204 e não grava",
+          c.post("/api/publico/evento", content="lixo", headers=NAVEGADOR).status_code == 204)
+    outra = cliente("outra-agencia.localhost:8010")
+    evento({"tipo": "visita", "pagina": "/"}, host=outra)
+    check("evento de outro host não cai nesta agência",
+          await DB.site_eventos.count_documents({"tenant_id": TENANT, "tipo": "visita"}) == 3)
+
+    check("utm com meio pago vira anúncio",
+          site_metricas.classificar_origem({"utm_source": "ig", "utm_medium": "cpc", "utm_campaign": "verao"})
+          == ("Instagram (anúncio)", "verao"))
+    check("clique do Google Ads sem utm também",
+          site_metricas.classificar_origem({"gclid": True})[0] == "Google (anúncio)")
+    check("sem nada, direto", site_metricas.classificar_origem(None)[0] == "Direto")
+
+    # Clique no WhatsApp vindo do Instagram, conversa e reserva.
+    corpo = c.post("/api/publico/clique", json={"passeio": "lagoa-azul", "pagina": "/en/passeio/lagoa-azul",
+                                               "origem": insta}).json()
+    clique = await DB.site_cliques.find_one({"codigo": corpo["codigo"]})
+    check("o clique do botão guarda a origem da visita", clique["fonte"] == "Instagram", clique)
+    await flow_runtime.handle_incoming_message(TENANT, "5598944443333", f"Oi! Código do site: {corpo['codigo']}",
+                                               "m-site-desemp", connection_id="conn-s")
+    contato = await DB.contacts.find_one({"tenant_id": TENANT, "numero_whatsapp": "5598944443333"})
+    agora = datetime.now(timezone.utc)
+    await DB.appointments.insert_one({"id": "r-site", "tenant_id": TENANT, "contact_id": contato["id"],
+                                      "status": "agendado", "preco": 300,
+                                      "created_at": (agora + timedelta(seconds=5)).isoformat()})
+    await DB.appointments.insert_one({"id": "r-velha", "tenant_id": TENANT, "contact_id": contato["id"],
+                                      "status": "agendado", "preco": 999,
+                                      "created_at": (agora - timedelta(days=3)).isoformat()})
+    await DB.appointments.insert_one({"id": "r-cancelada", "tenant_id": TENANT, "contact_id": contato["id"],
+                                      "status": "cancelado", "preco": 999,
+                                      "created_at": (agora + timedelta(seconds=6)).isoformat()})
+
+    d = await rsite.desempenho(30, ADMIN)
+    t = d["totais"]
+    check("o painel conta visitas e visitantes (a mesma pessoa uma vez no dia)",
+          t["visitas"] == 3 and t["visitantes"] == 2, t)
+    check("e fecha o funil até a reserva, sem a de antes da conversa nem a cancelada",
+          t["reservas"] == 1 and t["receita"] == 300 and t["conversas"] >= 1, t)
+    o = next(x for x in d["origens"] if x["fonte"] == "Instagram")
+    check("a reserva volta para a origem da visita",
+          (o["visitas"], o["visitantes"], o["whatsapp"], o["conversas"], o["reservas"]) == (2, 1, 1, 1, 1), o)
+    pag = next(x for x in d["paginas"] if x["pagina"] == "/passeio/lagoa-azul")
+    check("a página aparece pelo nome do passeio, com visitas e cliques no WhatsApp",
+          pag["nome"] == "Lagoa Azul" and pag["visitas"] == 1 and pag["whatsapp"] >= 1, pag)
+    cl = {x["alvo"]: x for x in d["cliques"]}
+    check("os cliques internos aparecem com o detalhe pelo nome",
+          cl["faq"]["n"] == 1 and cl["passeio"]["detalhes"][0]["detalhe"] == "Lagoa Azul", cl)
+    check("a série tem um dia por dia do período", len(d["serie"]) == 30 and sum(x["visitas"] for x in d["serie"]) == 3)
+    check("idioma e aparelho", {x["idioma"] for x in d["idiomas"]} == {"pt", "en"}
+          and {x["dispositivo"] for x in d["dispositivos"]} == {"celular", "computador"})
+    outra_d = await rsite.desempenho(30, ADMIN2)
+    check("a outra agência não vê nada desta", outra_d["totais"]["visitas"] == 0)
+
+    await rsite.salvar_site(rsite.SiteIn(publicado=False), ADMIN)
+    evento({"tipo": "visita", "pagina": "/"})
+    check("site despublicado não grava visita",
+          await DB.site_eventos.count_documents({"tenant_id": TENANT, "tipo": "visita"}) == 3)
+    await rsite.salvar_site(rsite.SiteIn(publicado=True), ADMIN)
+    site_metricas._eventos_por_ip.clear()
+
+
 async def etapa_limite_e_tls(ctx):
     _conectar_fake()
     sites._cliques_por_ip.clear()
@@ -812,7 +909,7 @@ async def etapa_guardas():
 
     check("configurar o site é só do admin",
           all(guarda(f) for f in (rsite.ver_site, rsite.salvar_site, rsite.slug_livre,
-                                  rsite.sugestao_slug, rsite.subir_imagem)))
+                                  rsite.sugestao_slug, rsite.subir_imagem, rsite.desempenho)))
 
 
 async def _suite():
@@ -826,6 +923,7 @@ async def _suite():
     await etapa_local_guias_idiomas(ctx)
     await etapa_previa(ctx)
     await etapa_clique_e_atribuicao(ctx)
+    await etapa_desempenho(ctx)
     await etapa_limite_e_tls(ctx)
     await etapa_guardas()
     await etapa_dominio()

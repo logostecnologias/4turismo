@@ -229,7 +229,7 @@
       {% for i in menu_idiomas if i.ativo %}<span>{{ i.curto }}</span>{% endfor %}
     </summary>
     <nav class="opcoes" aria-label="{{ t.idioma }}">
-      {% for i in menu_idiomas %}<a href="{{ i.href }}" hreflang="{{ i.lang }}" lang="{{ i.lang }}"{% if i.ativo %} class="ativo" aria-current="true"{% endif %}>{{ i.nome }} <small>{{ i.curto }}</small></a>{% endfor %}
+      {% for i in menu_idiomas %}<a href="{{ i.href }}" data-4t="idioma" data-4t-detalhe="{{ i.curto }}" hreflang="{{ i.lang }}" lang="{{ i.lang }}"{% if i.ativo %} class="ativo" aria-current="true"{% endif %}>{{ i.nome }} <small>{{ i.curto }}</small></a>{% endfor %}
     </nav>
   </details>
   {% endif %}
@@ -245,6 +245,63 @@
   // ficha e orçamento quando chega.
   (function () {
     var previa = new URLSearchParams(location.search).get("previa");
+
+    // De onde o turista veio, guardado na primeira página da visita: nas
+    // seguintes o referrer é o próprio site, e a origem se perderia. É
+    // sessionStorage (some ao fechar a aba), sem cookie, e o referrer vai só
+    // com o domínio.
+    function origem() {
+      var o = null;
+      try { o = JSON.parse(sessionStorage.getItem("4t_origem") || "null"); } catch (e) {}
+      if (o) return o;
+      var q = new URLSearchParams(location.search), ref = "";
+      try { ref = document.referrer ? new URL(document.referrer).hostname : ""; } catch (e) {}
+      if (ref === location.hostname) ref = "";
+      o = { ref: ref || null, utm_source: q.get("utm_source"), utm_medium: q.get("utm_medium"),
+            utm_campaign: q.get("utm_campaign"),
+            gclid: q.has("gclid") || q.has("gbraid") || q.has("wbraid"), fbclid: q.has("fbclid") };
+      try { sessionStorage.setItem("4t_origem", JSON.stringify(o)); } catch (e) {}
+      return o;
+    }
+
+    // Visita e cliques vão por beacon: ele sobrevive à saída da página, que é
+    // justamente o que acontece num clique para fora. Na prévia nada é medido.
+    function medir(ev) {
+      if (previa) return;
+      ev.pagina = location.pathname;
+      ev.origem = origem();
+      var corpo = JSON.stringify(ev);
+      try { if (navigator.sendBeacon && navigator.sendBeacon("/api/publico/evento", corpo)) return; } catch (e) {}
+      try { fetch("/api/publico/evento", { method: "POST", body: corpo, keepalive: true }); } catch (e) {}
+    }
+    medir({ tipo: "visita" });
+
+    // Cliques internos: o que o modelo marca com data-4t, e os links de
+    // ligação, e-mail, Instagram, mapa e para fora, achados sozinhos. O botão
+    // do WhatsApp tem caminho próprio (o código), e a pergunta frequente é
+    // medida ao abrir, no `toggle`.
+    document.addEventListener("click", function (e) {
+      var el = e.target.closest("a[href], [data-4t]");
+      if (!el || el.hasAttribute("data-clique") || el.tagName === "DETAILS") return;
+      var alvo = el.getAttribute("data-4t"), detalhe = el.getAttribute("data-4t-detalhe");
+      if (!alvo && el.tagName === "A") {
+        var href = el.getAttribute("href") || "";
+        if (/^tel:/i.test(href)) alvo = "ligacao";
+        else if (/^mailto:/i.test(href)) alvo = "email";
+        else if (el.hostname && el.hostname !== location.hostname) {
+          if (/(^|\.)instagram\.com$/i.test(el.hostname)) alvo = "instagram";
+          else if (/(^|\.)google\.[a-z.]+$/i.test(el.hostname) && /^\/maps/.test(el.pathname)) alvo = "mapa";
+          else { alvo = "link_externo"; detalhe = el.hostname; }
+        }
+      }
+      if (alvo) medir({ tipo: "clique", alvo: alvo, detalhe: detalhe || null });
+    }, true);
+    document.addEventListener("toggle", function (e) {
+      var d = e.target;
+      if (d.open && d.getAttribute && d.getAttribute("data-4t"))
+        medir({ tipo: "clique", alvo: d.getAttribute("data-4t"), detalhe: d.getAttribute("data-4t-detalhe") });
+    }, true);
+
     function sair(dados, reserva) {
       var url = "/api/publico/clique" + (previa ? "?previa=" + encodeURIComponent(previa) : "");
       var pronto = false;
@@ -262,7 +319,7 @@
       var form = a.closest("form");
       var dados = { passeio: a.getAttribute("data-passeio") || null, pagina: location.pathname,
                     referencia: document.referrer || null, adultos: 0, criancas: 0,
-                    idioma: (document.documentElement.lang || "pt").slice(0, 2) };
+                    idioma: (document.documentElement.lang || "pt").slice(0, 2), origem: origem() };
       if (form) {
         dados.dia = form.dia ? (form.dia.value || null) : null;
         dados.adultos = form.adultos ? parseInt(form.adultos.value || "0", 10) : 0;

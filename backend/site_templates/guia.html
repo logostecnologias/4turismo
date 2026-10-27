@@ -35,7 +35,7 @@
     <div class="secao-titulo"><h2>{{ t.passeios_relacionados }}</h2></div>
     <div class="grade">
       {% for p in passeios %}
-      <a class="cartao" href="{{ p.url }}">
+      <a class="cartao" href="{{ p.url }}" data-4t="passeio" data-4t-detalhe="{{ p.slug }}">
         {% if p.foto %}<img class="foto" src="{{ p.foto.src }}" srcset="{{ p.foto.srcset }}" sizes="{{ p.foto.sizes }}" alt="{{ p.nome }}" loading="lazy">
         {% else %}<div class="foto-vazia">{{ p.nome }}</div>{% endif %}
         <div class="corpo">

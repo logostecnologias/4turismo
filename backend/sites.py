@@ -850,11 +850,16 @@ def link_whatsapp(numero: str, texto: str) -> str:
 
 async def registrar_clique(db, site: dict, *, passeio: dict | None, dia: str | None,
                            adultos: int, criancas: int, pagina: str = None,
-                           referencia: str = None, idioma: str = "pt") -> dict:
+                           referencia: str = None, idioma: str = "pt", origem: dict | None = None) -> dict:
     """Grava o clique e devolve o código e o link do WhatsApp."""
     import agenda
     import saidas
     import site_i18n
+    import site_metricas
+
+    # A origem da visita (Instagram, Google, anúncio) vai junto: é ela que
+    # leva a conversa e a reserva de volta ao canal no painel de desempenho.
+    fonte, campanha = site_metricas.classificar_origem(origem)
 
     idioma = site_i18n.valido(idioma)
     dia_rotulo = None
@@ -875,6 +880,7 @@ async def registrar_clique(db, site: dict, *, passeio: dict | None, dia: str | N
             "service_id": (passeio or {}).get("id"), "service_nome": (passeio or {}).get("nome"),
             "dia": dia, "adultos": a, "criancas": c, "idioma": idioma,
             "pagina": (pagina or "")[:200] or None, "referencia": (referencia or "")[:300] or None,
+            "fonte": fonte, "campanha": campanha,
             "convertido_em": None, "contact_id": None, "deal_id": None,
             "created_at": _now(),
             # `Date` nativo, não ISO: o índice TTL do Mongo só age sobre Date.
